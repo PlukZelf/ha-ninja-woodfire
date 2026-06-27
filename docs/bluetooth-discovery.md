@@ -87,3 +87,19 @@ python tools/ble_gatt_dump.py <device-address> --listen --listen-timeout 120
 While this is running, change appliance state from the device controls or the official app and record the emitted payloads.
 
 Do not run unknown write commands against the appliance.
+
+## Parse Android HCI Snoop Logs
+
+If an Android bugreport contains `btsnoop_hci.log`, extract ATT/GATT events with:
+
+```bash
+python tools/parse_btsnoop_att.py <path-to-btsnoop_hci.log>
+```
+
+To focus on write requests and write commands:
+
+```bash
+python tools/parse_btsnoop_att.py <path-to-btsnoop_hci.log> --writes-only
+```
+
+Android and BlueZ may assign different numeric handles for the same characteristics, so map handles through nearby service discovery and characteristic properties instead of assuming Linux handle numbers always match Android handle numbers.
