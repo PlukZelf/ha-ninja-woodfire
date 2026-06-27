@@ -98,6 +98,7 @@ async def read_characteristics(client: BleakClient, characteristics: list[str]) 
                 "characteristic": uuid,
                 "label": _known_label(uuid),
                 "data_hex": _bytes_to_hex(data),
+                "data_len": len(data),
             }
         print(json.dumps(payload, sort_keys=True), flush=True)
 
@@ -112,6 +113,7 @@ async def listen(client: BleakClient, characteristics: list[str], timeout: float
             "characteristic": uuid,
             "label": _known_label(uuid),
             "data_hex": _bytes_to_hex(data),
+            "data_len": len(data),
         }
         print(json.dumps(payload, sort_keys=True), flush=True)
 
