@@ -1,0 +1,21 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Ninja Woodfire",
+        "description": "Enter the Bluetooth address of your Ninja Woodfire device.",
+        "data": {
+          "address": "Bluetooth address",
+          "name": "Name"
+        }
+      },
+      "bluetooth_confirm": {
+        "title": "Ninja Woodfire found",
+        "description": "Do you want to add {name} ({address}) to Home Assistant?"
+      }
+    },
+    "abort": {
+      "already_configured": "This device is already configured."
+    }
+  }
+}
