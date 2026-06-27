@@ -1,0 +1,34 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+
+# Editors
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Local secrets and captures
+*.log
+*.pcap
+*.pcapng
+*.btsnoop
+*btsnoop*
+captures/*
+!captures/.gitkeep
+
+# Home Assistant local runtime
+.storage/
+home-assistant.log*
