@@ -9,3 +9,4 @@ The format is based on Keep a Changelog, and this project intends to follow sema
 ### Added
 
 - Initial repository documentation and project structure.
+- Read-only BLE advertisement scanner for discovery work.
