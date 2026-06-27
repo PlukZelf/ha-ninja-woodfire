@@ -10,8 +10,8 @@
 ## Sprint 1: Bluetooth Discovery
 
 - [x] Add a `bleak`-based discovery tool.
-- [ ] Scan for the Ninja Woodfire device.
-- [ ] Record GATT services and characteristics.
+- [x] Scan for the Ninja Woodfire device.
+- [x] Record GATT services and characteristics.
 - [ ] Document notification characteristics and observed payloads.
 
 ## Sprint 2: Protocol Research
