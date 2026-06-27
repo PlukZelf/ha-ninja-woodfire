@@ -53,3 +53,31 @@ For candidate Ninja devices, record:
 - whether the device appears only when powered on, paired, or in a specific mode.
 
 Confirmed, sanitized findings should be documented in `spec/`.
+
+## Dump GATT Services
+
+Once the device address is known locally, connect and list GATT services:
+
+```bash
+python tools/ble_gatt_dump.py <device-address>
+```
+
+Save machine-readable output locally:
+
+```bash
+python tools/ble_gatt_dump.py <device-address> --json > captures/gatt-local.json
+```
+
+The GATT dump tool is read-only. It connects and inspects services, but does not write to characteristics.
+
+## Listen For Notifications
+
+To listen on the currently known Ninja notify and indicate characteristics:
+
+```bash
+python tools/ble_gatt_dump.py <device-address> --listen --listen-timeout 120
+```
+
+While this is running, change appliance state from the device controls or the official app and record the emitted payloads.
+
+Do not run unknown write commands against the appliance.

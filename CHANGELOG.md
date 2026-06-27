@@ -10,3 +10,5 @@ The format is based on Keep a Changelog, and this project intends to follow sema
 
 - Initial repository documentation and project structure.
 - Read-only BLE advertisement scanner for discovery work.
+- Confirmed initial Ninja Woodfire GATT service and characteristic UUIDs.
+- Read-only GATT dump and notification listener tool.
