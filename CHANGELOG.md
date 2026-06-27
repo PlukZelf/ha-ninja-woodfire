@@ -12,3 +12,5 @@ The format is based on Keep a Changelog, and this project intends to follow sema
 - Read-only BLE advertisement scanner for discovery work.
 - Confirmed initial Ninja Woodfire GATT service and characteristic UUIDs.
 - Read-only GATT dump and notification listener tool.
+- Read-only characteristic reads for known safe GATT endpoints.
+- First observed `b004` indicate payload sample.

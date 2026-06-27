@@ -70,6 +70,12 @@ python tools/ble_gatt_dump.py <device-address> --json > captures/gatt-local.json
 
 The GATT dump tool is read-only. It connects and inspects services, but does not write to characteristics.
 
+Read known safe characteristics:
+
+```bash
+python tools/ble_gatt_dump.py <device-address> --read-known
+```
+
 ## Listen For Notifications
 
 To listen on the currently known Ninja notify and indicate characteristics:
