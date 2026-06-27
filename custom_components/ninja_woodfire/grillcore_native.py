@@ -1,7 +1,7 @@
 """
 Native library wrapper for libgrillcore_android.so.
 
-This module provides a Python interface to the Ninja Woodfire native
+This module provides a Python interface to the Ninja Woodfire Pro Connect XL native
 Rust library using ctypes. The library is an ARM64 ELF that can run
 on Raspberry Pi 4, HA Yellow, HA Green, and other ARM64 Linux hosts.
 

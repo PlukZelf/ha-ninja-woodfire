@@ -1,6 +1,6 @@
 # Bluetooth Discovery
 
-This phase discovers what the Ninja Woodfire exposes over Bluetooth Low Energy.
+This phase discovers what the Ninja Woodfire Pro Connect XL exposes over Bluetooth Low Energy.
 
 The first tool is read-only. It scans advertisements and does not connect to the appliance or write commands.
 
