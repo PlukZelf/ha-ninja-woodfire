@@ -1,4 +1,4 @@
-"""Config flow for Ninja Woodfire integration.
+"""Config flow for Ninja Woodfire Pro Connect XL integration.
 
 Supports:
 - Automatic discovery via HA Bluetooth integration (preferred).
@@ -23,13 +23,13 @@ _LOGGER = logging.getLogger(__name__)
 STEP_USER_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_ADDRESS): str,
-        vol.Optional(CONF_NAME, default="Ninja Woodfire"): str,
+        vol.Optional(CONF_NAME, default="Ninja Woodfire Pro Connect XL"): str,
     }
 )
 
 
 class NinjaWoodfireConfigFlow(ConfigFlow, domain=DOMAIN):
-    """Handle the config flow for Ninja Woodfire."""
+    """Handle the config flow for Ninja Woodfire Pro Connect XL."""
 
     VERSION = 1
 
@@ -42,7 +42,7 @@ class NinjaWoodfireConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Handle a device discovered via HA Bluetooth."""
         address = discovery_info.address
-        name = discovery_info.name or f"Ninja Woodfire ({address})"
+        name = discovery_info.name or f"Ninja Woodfire Pro Connect XL ({address})"
 
         await self.async_set_unique_id(address)
         self._abort_if_unique_id_configured()
@@ -60,7 +60,7 @@ class NinjaWoodfireConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             return self._create_entry(
                 address=self._discovered_address,  # type: ignore[arg-type]
-                name=self._discovered_name or "Ninja Woodfire",
+                name=self._discovered_name or "Ninja Woodfire Pro Connect XL",
             )
 
         return self.async_show_form(
@@ -79,7 +79,7 @@ class NinjaWoodfireConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             address = user_input[CONF_ADDRESS].strip()
-            name = user_input.get(CONF_NAME, "Ninja Woodfire")
+            name = user_input.get(CONF_NAME, "Ninja Woodfire Pro Connect XL")
 
             await self.async_set_unique_id(address)
             self._abort_if_unique_id_configured()

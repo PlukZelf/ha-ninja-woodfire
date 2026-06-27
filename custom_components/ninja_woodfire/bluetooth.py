@@ -1,4 +1,4 @@
-"""Bluetooth client for the Ninja Woodfire integration.
+"""Bluetooth client for the Ninja Woodfire Pro Connect XL integration.
 
 Handles connecting to the device, subscribing to notify/indicate
 characteristics, and calling back into the coordinator when new
@@ -31,7 +31,7 @@ NotifyCallback = Callable[[str, bytes], None]
 
 
 class NinjaWoodfireClient:
-    """Manages the BLE connection to a Ninja Woodfire device."""
+    """Manages the BLE connection to a Ninja Woodfire Pro Connect XL device."""
 
     def __init__(
         self,

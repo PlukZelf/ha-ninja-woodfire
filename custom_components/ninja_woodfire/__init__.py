@@ -1,4 +1,4 @@
-"""Ninja Woodfire Home Assistant integration."""
+"""Ninja Woodfire Pro Connect XL Home Assistant integration."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ type NinjaWoodfireConfigEntry = ConfigEntry[NinjaWoodfireCoordinator]
 
 async def async_setup_entry(hass: HomeAssistant, entry: NinjaWoodfireConfigEntry) -> bool:
     address: str = entry.data[CONF_ADDRESS]
-    name: str = entry.data.get(CONF_NAME, "Ninja Woodfire")
+    name: str = entry.data.get(CONF_NAME, "Ninja Woodfire Pro Connect XL")
 
     coordinator = NinjaWoodfireCoordinator(hass, address=address, name=name)
     entry.runtime_data = coordinator

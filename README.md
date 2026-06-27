@@ -1,10 +1,10 @@
-# HA Ninja Woodfire
+# HA Ninja Woodfire Pro Connect XL
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 [![HA Version](https://img.shields.io/badge/Home%20Assistant-2026.6%2B-blue)](https://www.home-assistant.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-Local Home Assistant integration for the **Ninja Woodfire Pro** outdoor cooking appliance. Connects via Bluetooth Low Energy — no cloud, no Ninja account required.
+Local Home Assistant integration for the **Ninja Woodfire Pro Connect XL** outdoor cooking appliance. Connects via Bluetooth Low Energy — no cloud, no Ninja account required.
 
 > **Status:** Active development — protocol reverse-engineering in progress. Basic BLE connectivity works; full state parsing and control commands are being implemented.
 
@@ -27,7 +27,7 @@ Local Home Assistant integration for the **Ninja Woodfire Pro** outdoor cooking 
 
 | Model | Status |
 |-------|--------|
-| Ninja Woodfire Pro (OG-series) | ✅ Primary test device |
+| Ninja Woodfire Pro Connect XL (OG-series) | ✅ Primary test device |
 | Other OG-series | 🔄 Likely compatible, untested |
 
 ---
@@ -51,7 +51,7 @@ Local Home Assistant integration for the **Ninja Woodfire Pro** outdoor cooking 
 
 1. Open HACS → Integrations → ⋮ → *Custom repositories*
 2. Add `https://github.com/PlukZelf/ha-ninja-woodfire`, category *Integration*
-3. Install **Ninja Woodfire**
+3. Install **Ninja Woodfire Pro Connect XL**
 4. Restart Home Assistant
 
 ### Manual
@@ -66,9 +66,9 @@ Restart Home Assistant.
 
 ## Setup
 
-1. Make sure your Ninja Woodfire Pro is powered on and nearby
+1. Make sure your Ninja Woodfire Pro Connect XL is powered on and nearby
 2. Go to **Settings → Devices & Services → Add Integration**
-3. Search for **Ninja Woodfire**
+3. Search for **Ninja Woodfire Pro Connect XL**
 4. The device will be discovered automatically via Bluetooth
 
 ---
@@ -111,7 +111,7 @@ Restart Home Assistant.
 The integration is fully local — it communicates directly with the device over BLE:
 
 ```
-Ninja Woodfire Pro
+Ninja Woodfire Pro Connect XL
   → BLE advertisements (NCEU<mac>)
   → GATT Service: 0000fcbb-0000-1000-8000-00805f9b34fb
     → Indicate (b004): encrypted device state
@@ -203,7 +203,7 @@ Developed and tested on:
 | Home Assistant Core | 2026.6.4 |
 | Home Assistant OS | 18.0 |
 | Supervisor | 2026.06.2 |
-| Test device | Ninja Woodfire Pro (OG-series, EU) |
+| Test device | Ninja Woodfire Pro Connect XL (OG-series, EU) |
 
 ---
 

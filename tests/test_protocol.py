@@ -1,4 +1,4 @@
-"""Tests for the Ninja Woodfire protocol parser.
+"""Tests for the Ninja Woodfire Pro Connect XL protocol parser.
 
 These tests use observed payloads from spec/gatt.md. As more of the protocol
 is understood, extend these tests with assertions on parsed fields.

@@ -1,4 +1,4 @@
-"""Sensor entities for Ninja Woodfire."""
+"""Sensor entities for Ninja Woodfire Pro Connect XL."""
 
 from __future__ import annotations
 
@@ -165,7 +165,7 @@ class NinjaWoodfireSensor(CoordinatorEntity[NinjaWoodfireCoordinator], SensorEnt
             "identifiers": {(DOMAIN, coordinator.address)},
             "name": coordinator.device_name,
             "manufacturer": "Ninja",
-            "model": "Woodfire Pro",
+            "model": "Woodfire Pro Connect XL",
         }
 
     @property
