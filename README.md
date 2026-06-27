@@ -22,6 +22,12 @@ Planned first milestones:
 3. Capture and document GATT services, characteristics, notifications, and commands.
 4. Implement the first Home Assistant entities.
 
+## Bluetooth Discovery
+
+The first discovery tool is available at `tools/ble_scan.py`. It scans nearby BLE advertisements without connecting to devices or writing commands.
+
+See [Bluetooth Discovery](docs/bluetooth-discovery.md) for setup and usage.
+
 ## Repository Layout
 
 ```text

@@ -4,12 +4,12 @@
 
 - [x] Create the repository structure.
 - [x] Add project documentation placeholders and first content.
-- [ ] Add an initial GitHub remote.
-- [ ] Make the first commit.
+- [x] Add an initial GitHub remote.
+- [x] Make the first commit.
 
 ## Sprint 1: Bluetooth Discovery
 
-- [ ] Add a `bleak`-based discovery tool.
+- [x] Add a `bleak`-based discovery tool.
 - [ ] Scan for the Ninja Woodfire device.
 - [ ] Record GATT services and characteristics.
 - [ ] Document notification characteristics and observed payloads.
