@@ -55,3 +55,19 @@ eb ce 48 9b b5 c4 da 70 f6 7a f8 58 7e 21 6a 39
 Length: 64 bytes.
 
 Current interpretation: unknown. The payloads do not appear to be plain text and may include encrypted or session-specific data. More samples are needed while changing appliance state.
+
+## Android HCI Capture Notes
+
+An Android HCI snoop capture from the official app showed:
+
+- a client configuration write to enable indications;
+- two 48-byte `Write Request` packets to a vendor characteristic;
+- 20-byte indications returned by the device after those writes.
+
+The Android capture used different numeric ATT handles than BlueZ on Home Assistant, but the flow matches the known vendor service shape:
+
+- write characteristic: `b002`;
+- indicate characteristic: `b004`;
+- client characteristic configuration descriptor next to `b004`.
+
+The raw write payloads are not documented here because they appear session-specific and should not be replayed blindly.

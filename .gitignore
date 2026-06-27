@@ -26,6 +26,7 @@ venv/
 *.pcapng
 *.btsnoop
 *btsnoop*
+!tools/parse_btsnoop_att.py
 captures/*
 !captures/.gitkeep
 
