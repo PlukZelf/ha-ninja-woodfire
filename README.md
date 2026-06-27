@@ -69,7 +69,7 @@ Restart Home Assistant.
 1. Make sure your Ninja Woodfire Pro is powered on and nearby
 2. Go to **Settings → Devices & Services → Add Integration**
 3. Search for **Ninja Woodfire**
-4. The device will be discovered automatically via Bluetooth, or enter the address manually
+4. The device will be discovered automatically via Bluetooth
 
 ---
 
