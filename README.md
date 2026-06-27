@@ -38,10 +38,10 @@ Local Home Assistant integration for the **Ninja Woodfire Pro Connect XL** outdo
 |-----------|---------|
 | Home Assistant OS | — |
 | Home Assistant Core | 2026.6.0+ |
-| Hardware | ARM64 host (Raspberry Pi 4/5, HA Yellow, HA Green) |
+| Hardware | Recommended: Raspberry Pi 4/5, Home Assistant Green, Home Assistant Yellow, or similar |
 | Bluetooth | Required — built-in or USB dongle |
 
-> **Note:** The integration requires an ARM64 host for full BLE decryption support. On x86_64 hosts the integration will connect but cannot decrypt device state until the protocol is fully documented.
+> **Hardware note:** For now, live grill data works best on Raspberry Pi, Home Assistant Green and Home Assistant Yellow systems. Intel/AMD mini PCs may find the grill over Bluetooth, but live temperatures and status will not work yet.
 
 ---
 
