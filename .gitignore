@@ -21,6 +21,9 @@ venv/
 !.vscode/settings.json
 
 # Local secrets and captures
+AGENT_HANDOVER.md
+ENVIRONMENT.md
+mnt/
 *.log
 *.pcap
 *.pcapng
