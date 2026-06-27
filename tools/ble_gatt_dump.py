@@ -11,11 +11,13 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import sys
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from typing import Any
 
 from bleak import BleakClient
+from bleak.exc import BleakError
 
 
 NINJA_SERVICE_UUID = "0000fcbb-0000-1000-8000-00805f9b34fb"
@@ -174,31 +176,55 @@ def parse_args() -> argparse.Namespace:
         default=60.0,
         help="Notification listen duration in seconds. Default: 60.",
     )
+    parser.add_argument(
+        "--retries",
+        type=int,
+        default=3,
+        help="Connection attempts before giving up. Default: 3.",
+    )
+    parser.add_argument(
+        "--retry-delay",
+        type=float,
+        default=3.0,
+        help="Delay between connection attempts in seconds. Default: 3.",
+    )
     return parser.parse_args()
 
 
 async def main() -> None:
     args = parse_args()
 
-    async with BleakClient(args.address) as client:
-        services = dump_services_from_client(client)
-        if args.json:
-            print_json(services)
-        else:
-            print_text(services)
+    last_error: Exception | None = None
+    for attempt in range(1, args.retries + 1):
+        try:
+            async with BleakClient(args.address) as client:
+                services = dump_services_from_client(client)
+                if args.json:
+                    print_json(services)
+                else:
+                    print_text(services)
 
-        if args.read_known:
-            await read_characteristics(
-                client,
-                characteristics=[GAP_DEVICE_NAME_UUID, NINJA_READ_UUID],
-            )
+                if args.read_known:
+                    await read_characteristics(
+                        client,
+                        characteristics=[GAP_DEVICE_NAME_UUID, NINJA_READ_UUID],
+                    )
 
-        if args.listen:
-            await listen(
-                client,
-                characteristics=[NINJA_NOTIFY_UUID, NINJA_INDICATE_UUID],
-                timeout=args.listen_timeout,
-            )
+                if args.listen:
+                    await listen(
+                        client,
+                        characteristics=[NINJA_NOTIFY_UUID, NINJA_INDICATE_UUID],
+                        timeout=args.listen_timeout,
+                    )
+                return
+        except (BleakError, TimeoutError, OSError) as err:
+            last_error = err
+            print(f"Connection attempt {attempt}/{args.retries} failed: {err}", file=sys.stderr)
+            if attempt < args.retries:
+                await asyncio.sleep(args.retry_delay)
+
+    print(f"Failed after {args.retries} connection attempts: {last_error}", file=sys.stderr)
+    sys.exit(1)
 
 
 if __name__ == "__main__":
