@@ -169,7 +169,7 @@ Current status of reverse-engineering:
 |------|--------|
 | GATT services & characteristics | ✅ Complete |
 | BLE connection flow | ✅ Documented |
-| Encryption mechanism | 🔄 In progress (Frida hooking) |
+| Encryption mechanism | 🔄 In progress (static .so analysis) |
 | State payload parsing | 🔄 In progress |
 | Command payload format | ⏳ Pending encryption |
 
