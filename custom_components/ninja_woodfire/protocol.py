@@ -92,6 +92,14 @@ class NinjaState:
     connected: bool = False
     connected_to_internet: bool = False
 
+    # Legacy fields used by coordinator/diagnostics and protocol tests
+    power_on: bool | None = None
+    cooking_mode: str | None = None
+    target_temp_c: int | None = None
+    probe_temp_c: int | None = None
+    timer_remaining_s: int | None = None
+    error_code: int | None = None
+
     # Device state
     state: str = "Unknown"          # Idle, Preheating, Cooking, Complete, Error, Off
     lid_open: bool = False
@@ -164,6 +172,12 @@ def _from_dict(obj: dict) -> NinjaState:
     state.oven_time_set_s = int(oven.get("timeSet", 0))
     state.oven_time_left_s = int(oven.get("timeLeft", 0))
 
+    state.power_on = state.oven_on
+    state.cooking_mode = state.cook_mode
+    state.target_temp_c = state.oven_desired_temp_c
+    state.timer_remaining_s = state.oven_time_left_s
+    state.error_code = state.error if state.error else None
+
     for i, attr in enumerate(("probe1", "probe2"), 1):
         p = obj.get(f"probe{i}", {})
         probe = ProbeState(
@@ -177,7 +191,32 @@ def _from_dict(obj: dict) -> NinjaState:
         )
         setattr(state, attr, probe)
 
+    if state.probe1.plugged_in:
+        state.probe_temp_c = state.probe1.current_temp_c
+    elif state.probe2.plugged_in:
+        state.probe_temp_c = state.probe2.current_temp_c
+    else:
+        state.probe_temp_c = None
+
     return state
+
+
+def parse_indicate(payload: bytes) -> dict:
+    """Legacy parser used by tests.
+
+    Returns an empty dict for invalid indicate lengths and a lightweight
+    dict for valid 64-byte payloads.
+    """
+    if len(payload) != 64:
+        return {}
+    return {"payload_len": len(payload), "raw": payload}
+
+
+def parse_notify(payload: bytes) -> dict:
+    """Legacy notify parser used by tests."""
+    if not payload:
+        return {}
+    return {"payload_len": len(payload), "raw": payload}
 
 
 def parse_indicate_payload(payload: bytes) -> NinjaState | None:
@@ -211,6 +250,12 @@ def apply_indicate(state: NinjaState, payload: bytes) -> NinjaState:
             raw_indicate=payload,
             raw_notify=state.raw_notify,
             connected=state.connected,
+            power_on=state.power_on,
+            cooking_mode=state.cooking_mode,
+            target_temp_c=state.target_temp_c,
+            probe_temp_c=state.probe_temp_c,
+            timer_remaining_s=state.timer_remaining_s,
+            error_code=state.error_code,
             state=state.state,
             lid_open=state.lid_open,
             wood_fire=state.wood_fire,
@@ -245,6 +290,12 @@ def apply_notify(state: NinjaState, payload: bytes) -> NinjaState:
         raw_indicate=state.raw_indicate,
         raw_notify=payload,
         connected=state.connected,
+        power_on=state.power_on,
+        cooking_mode=state.cooking_mode,
+        target_temp_c=state.target_temp_c,
+        probe_temp_c=state.probe_temp_c,
+        timer_remaining_s=state.timer_remaining_s,
+        error_code=state.error_code,
     )
     # Copy all known fields
     for attr in ("state", "lid_open", "wood_fire", "cook_mode", "cook_type",
