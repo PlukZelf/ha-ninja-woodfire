@@ -13,7 +13,7 @@ from .coordinator import NinjaWoodfireCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR]
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.SWITCH]
 
 type NinjaWoodfireConfigEntry = ConfigEntry[NinjaWoodfireCoordinator]
 

@@ -1,15 +1,7 @@
-"""Bluetooth client for the Ninja Woodfire integration.
-
-Handles connecting to the device, subscribing to notify/indicate
-characteristics, and calling back into the coordinator when new
-data arrives. Uses the native libgrillcore_android.so for
-decryption when available, otherwise queues raw payloads for
-future protocol implementation.
-"""
+"""Bluetooth client for the Ninja Woodfire integration."""
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from collections.abc import Callable
 
@@ -20,14 +12,21 @@ from bleak.exc import BleakError
 from .const import (
     NINJA_INDICATE_UUID,
     NINJA_NOTIFY_UUID,
-    NINJA_WRITE_UUID,
     NINJA_SERVICE_UUID,
+    NINJA_WRITE_UUID,
 )
 from .grillcore_native import get_native
 
 _LOGGER = logging.getLogger(__name__)
 
 NotifyCallback = Callable[[str, bytes], None]
+DisconnectCallback = Callable[[], None]
+
+REQUIRED_CHARACTERISTICS = {
+    NINJA_WRITE_UUID,
+    NINJA_NOTIFY_UUID,
+    NINJA_INDICATE_UUID,
+}
 
 
 class NinjaWoodfireClient:
@@ -37,32 +36,43 @@ class NinjaWoodfireClient:
         self,
         address: str,
         on_data: NotifyCallback,
+        on_disconnect: DisconnectCallback | None = None,
         *,
         connection_timeout: float = 20.0,
     ) -> None:
         self._address = address
         self._on_data = on_data
+        self._on_disconnect = on_disconnect
         self._connection_timeout = connection_timeout
         self._client: BleakClient | None = None
         self._native = get_native()
-        self._session_id: int | None = None
 
     @property
     def is_connected(self) -> bool:
         return self._client is not None and self._client.is_connected
 
     async def start(self) -> None:
-        """Connect to the device and subscribe to notifications."""
+        """Connect, validate GATT structure, and subscribe to notifications."""
         _LOGGER.debug("Connecting to %s", self._address)
         client = BleakClient(
             self._address,
-            disconnected_callback=self._on_disconnected,
+            disconnected_callback=self._handle_disconnect,
             timeout=self._connection_timeout,
         )
         await client.connect()
+        _LOGGER.debug("Connected to %s — validating GATT structure", self._address)
+
+        if not await self._validate_gatt(client):
+            _LOGGER.error(
+                "GATT validation failed for %s — disconnecting immediately",
+                self._address,
+            )
+            await client.disconnect()
+            raise ValueError(f"GATT structure mismatch for {self._address}")
+
         self._client = client
-        _LOGGER.debug("Connected to %s", self._address)
         await self._subscribe(client)
+        _LOGGER.debug("GATT validated and subscribed for %s", self._address)
 
     async def stop(self) -> None:
         """Disconnect gracefully."""
@@ -72,6 +82,39 @@ class NinjaWoodfireClient:
             except (BleakError, OSError) as err:
                 _LOGGER.debug("Error during disconnect: %s", err)
         self._client = None
+
+    async def _validate_gatt(self, client: BleakClient) -> bool:
+        """Validate that expected service and characteristics are present.
+
+        Per the security spec: if the GATT structure does not match,
+        disconnect immediately, log the error, and process nothing.
+        """
+        services = client.services
+        service_uuids = {s.uuid for s in services}
+
+        if NINJA_SERVICE_UUID not in service_uuids:
+            _LOGGER.error(
+                "Ninja service UUID %s not found on %s — possible spoof or wrong device",
+                NINJA_SERVICE_UUID,
+                self._address,
+            )
+            return False
+
+        all_characteristic_uuids: set[str] = set()
+        for service in services:
+            for char in service.characteristics:
+                all_characteristic_uuids.add(char.uuid)
+
+        missing = REQUIRED_CHARACTERISTICS - all_characteristic_uuids
+        if missing:
+            _LOGGER.error(
+                "Missing required characteristics on %s: %s",
+                self._address,
+                missing,
+            )
+            return False
+
+        return True
 
     async def _subscribe(self, client: BleakClient) -> None:
         for uuid in (NINJA_NOTIFY_UUID, NINJA_INDICATE_UUID):
@@ -86,13 +129,12 @@ class NinjaWoodfireClient:
         if not self._client or not self._client.is_connected:
             return False
 
-        # Encrypt via native library if available
         if self._native.available():
-            encrypted = self._native.encrypt_data(payload, self._address)
+            encrypted = self._native.encrypt_data(self._address, payload)
             if encrypted:
                 payload = encrypted
             else:
-                _LOGGER.warning("Encryption failed, sending unencrypted — skipping for safety")
+                _LOGGER.warning("Encryption failed — skipping command for safety")
                 return False
         else:
             _LOGGER.warning(
@@ -118,26 +160,21 @@ class NinjaWoodfireClient:
         uuid = characteristic.uuid
         raw = bytes(data)
         _LOGGER.debug(
-            "Notification from %s: %d bytes: %s",
+            "Notification from %s: %d bytes",
             uuid,
             len(raw),
-            raw.hex(" "),
         )
 
-        # Try to decrypt via native library
         if self._native.available() and uuid == NINJA_INDICATE_UUID:
-            decrypted = self._native.decrypt_data(raw, self._address)
+            decrypted = self._native.decrypt_data(self._address, raw)
             if decrypted:
-                _LOGGER.debug("Decrypted: %s", decrypted.hex(" "))
                 self._on_data(uuid, decrypted)
                 return
-            else:
-                # First indication may be a challenge — pass raw for session setup
-                _LOGGER.debug("Decrypt returned None (challenge packet?), passing raw")
 
         self._on_data(uuid, raw)
 
-    def _on_disconnected(self, _client: BleakClient) -> None:
+    def _handle_disconnect(self, _client: BleakClient) -> None:
         _LOGGER.warning("Disconnected from %s", self._address)
         self._client = None
-        self._session_id = None
+        if self._on_disconnect:
+            self._on_disconnect()
