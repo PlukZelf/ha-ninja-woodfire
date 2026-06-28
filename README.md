@@ -8,6 +8,8 @@ Local Home Assistant integration for the **Ninja Woodfire Pro** outdoor cooking 
 
 > **Status:** Active development — protocol reverse-engineering in progress. Basic BLE connectivity works; full state parsing and control commands are being implemented.
 
+![Ninja Woodfire icon preview](assets/icon-512.png)
+
 ---
 
 ## Features
@@ -72,6 +74,8 @@ Beschikbare varianten:
 - `assets/icon-256.png`
 
 Voor zichtbaarheid in HACS wordt branding via Home Assistant Brands geleverd. Gebruik deze assets als bron voor een brands-PR onder `custom_integrations/ninja_woodfire`.
+
+Kant-en-klare brands bestanden staan ook in `brands/custom_integrations/ninja_woodfire/`.
 
 ---
 
