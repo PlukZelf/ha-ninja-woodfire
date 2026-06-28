@@ -2,7 +2,7 @@
 
 ## Overview
 
-The integration is intended to run fully locally inside Home Assistant. It will communicate with the Ninja Woodfire Pro Connect XL device over Bluetooth Low Energy and translate device state into Home Assistant entities.
+The integration is intended to run fully locally inside Home Assistant. It will communicate with the Ninja Woodfire Pro device over Bluetooth Low Energy and translate device state into Home Assistant entities.
 
 The project is split into three layers:
 
@@ -46,7 +46,7 @@ The exact entity set should follow the discovered protocol rather than assumptio
 ## Data Flow
 
 ```text
-Ninja Woodfire Pro Connect XL
+Ninja Woodfire Pro
   -> BLE notifications
   -> Bluetooth client
   -> Protocol parser

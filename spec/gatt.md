@@ -1,6 +1,6 @@
 # GATT Specification
 
-This document records confirmed Bluetooth Low Energy GATT details for the Ninja Woodfire Pro Connect XL integration.
+This document records confirmed Bluetooth Low Energy GATT details for the Ninja Woodfire Pro integration.
 
 ## Confirmed Device
 
