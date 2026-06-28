@@ -62,6 +62,17 @@ cp -r custom_components/ninja_woodfire /config/custom_components/
 
 Restart Home Assistant.
 
+### HACS icon / branding
+
+Gekozen bronbestand: `assets/ninja-woodfire-icon.png`.
+
+Beschikbare varianten:
+- `assets/icon.png` (originele resolutie)
+- `assets/icon-512.png`
+- `assets/icon-256.png`
+
+Voor zichtbaarheid in HACS wordt branding via Home Assistant Brands geleverd. Gebruik deze assets als bron voor een brands-PR onder `custom_integrations/ninja_woodfire`.
+
 ---
 
 ## Setup
