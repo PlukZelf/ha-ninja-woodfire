@@ -1,4 +1,4 @@
-"""Data update coordinator for the Ninja Woodfire Pro Connect XL integration.
+"""Data update coordinator for the Ninja Woodfire integration.
 
 Keeps a NinjaState up to date by receiving BLE notifications from the
 NinjaWoodfireClient and propagating updates to Home Assistant entities.

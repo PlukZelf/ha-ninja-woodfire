@@ -1,4 +1,4 @@
-"""Constants for the Ninja Woodfire Pro Connect XL integration."""
+"""Constants for the Ninja Woodfire integration."""
 
 DOMAIN = "ninja_woodfire"
 

@@ -2,15 +2,15 @@
   "config": {
     "step": {
       "user": {
-        "title": "Set up Ninja Woodfire Pro Connect XL",
-        "description": "Enter the Bluetooth address of your Ninja Woodfire Pro Connect XL device.",
+        "title": "Set up Ninja Woodfire",
+        "description": "Enter the Bluetooth address of your Ninja Woodfire device.",
         "data": {
           "address": "Bluetooth address",
           "name": "Name"
         }
       },
       "bluetooth_confirm": {
-        "title": "Ninja Woodfire Pro Connect XL found",
+        "title": "Ninja Woodfire found",
         "description": "Do you want to add {name} ({address}) to Home Assistant?"
       }
     },
