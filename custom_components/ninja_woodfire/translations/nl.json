@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Ninja Woodfire instellen",
-        "description": "Vul het Bluetooth-adres in van je Ninja Woodfire apparaat.",
+        "description": "Selecteer een Ninja Woodfire in de buurt of voer handmatig een Bluetooth-adres in.",
         "data": {
           "address": "Bluetooth-adres",
           "name": "Naam"
@@ -11,11 +11,23 @@
       },
       "bluetooth_confirm": {
         "title": "Ninja Woodfire gevonden",
-        "description": "Wil je {name} ({address}) toevoegen aan Home Assistant?"
+        "description": "Wil je **{name}** ({address}) toevoegen aan Home Assistant?\n\nBevestig alleen als dit jouw apparaat is."
       }
     },
     "abort": {
-      "already_configured": "Dit apparaat is al geconfigureerd."
+      "already_configured": "Dit apparaat is al geconfigureerd.",
+      "not_ninja_device": "Dit apparaat lijkt geen Ninja Woodfire te zijn."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Ninja Woodfire opties",
+        "description": "Apparaat: {address}\n\nJe kunt dit apparaat een andere naam geven. Om het te verwijderen, gebruik je de apparaatpagina in Home Assistant.",
+        "data": {
+          "name": "Naam"
+        }
+      }
     }
   }
 }
