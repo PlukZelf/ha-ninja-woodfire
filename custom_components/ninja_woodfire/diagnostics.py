@@ -1,4 +1,4 @@
-"""Diagnostics support for Ninja Woodfire Pro Connect XL.
+"""Diagnostics support for Ninja Woodfire.
 
 Exposes raw BLE payloads and parsed state so that users can share
 diagnostic information without exposing personal identifiers.

@@ -1,0 +1,62 @@
+name: Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Validate Integration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install homeassistant --quiet
+          pip install pytest pytest-asyncio pytest-homeassistant-custom-component --quiet
+
+      - name: Validate manifest
+        run: |
+          python3 -c "
+          import json, sys
+          with open('custom_components/ninja_woodfire/manifest.json') as f:
+              m = json.load(f)
+          required = ['domain', 'name', 'version', 'config_flow', 'iot_class', 'homeassistant']
+          for key in required:
+              if key not in m:
+                  print(f'ERROR: missing {key} in manifest.json')
+                  sys.exit(1)
+          print(f'Manifest OK: {m[\"domain\"]} v{m[\"version\"]}')
+          "
+
+      - name: Validate hacs.json
+        run: |
+          python3 -c "
+          import json, sys
+          with open('hacs.json') as f:
+              h = json.load(f)
+          required = ['name', 'domain']
+          for key in required:
+              if key not in h:
+                  print(f'ERROR: missing {key} in hacs.json')
+                  sys.exit(1)
+          print('hacs.json OK')
+          "
+
+      - name: Run tests
+        run: |
+          if [ -d "tests" ] && [ "$(ls -A tests/*.py 2>/dev/null)" ]; then
+            pytest tests/ -v
+          else
+            echo "No tests yet — skipping"
+          fi

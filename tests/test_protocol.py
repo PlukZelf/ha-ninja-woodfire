@@ -1,4 +1,4 @@
-"""Tests for the Ninja Woodfire Pro Connect XL protocol parser.
+"""Tests for the Ninja Woodfire protocol parser.
 
 These tests use observed payloads from spec/gatt.md. As more of the protocol
 is understood, extend these tests with assertions on parsed fields.
@@ -6,27 +6,15 @@ is understood, extend these tests with assertions on parsed fields.
 
 from __future__ import annotations
 
-import importlib.util
-import sys
-from pathlib import Path
+import pytest
 
-_PROTOCOL_PATH = (
-    Path(__file__).resolve().parents[1]
-    / "custom_components"
-    / "ninja_woodfire"
-    / "protocol.py"
+from custom_components.ninja_woodfire.protocol import (
+    NinjaState,
+    apply_indicate,
+    apply_notify,
+    parse_indicate,
+    parse_notify,
 )
-_SPEC = importlib.util.spec_from_file_location("ninja_woodfire_protocol", _PROTOCOL_PATH)
-assert _SPEC is not None
-protocol = importlib.util.module_from_spec(_SPEC)
-assert _SPEC.loader is not None
-sys.modules[_SPEC.name] = protocol
-_SPEC.loader.exec_module(protocol)
-
-NinjaState = protocol.NinjaState
-apply_indicate = protocol.apply_indicate
-apply_notify = protocol.apply_notify
-parse_indicate_payload = protocol.parse_indicate_payload
 
 # Observed payloads from spec/gatt.md
 SAMPLE_INDICATE_1 = bytes.fromhex(
@@ -44,30 +32,28 @@ SAMPLE_INDICATE_2 = bytes.fromhex(
 )
 
 
-def test_parse_indicate_encrypted_payload_returns_none() -> None:
-    """Encrypted/raw payloads are preserved until their layout is known."""
-    assert parse_indicate_payload(SAMPLE_INDICATE_1) is None
+def test_parse_indicate_length_ok() -> None:
+    """parse_indicate should accept a 64-byte payload without raising."""
+    result = parse_indicate(SAMPLE_INDICATE_1)
+    assert isinstance(result, dict)
 
 
-def test_parse_indicate_empty_returns_none() -> None:
-    assert parse_indicate_payload(b"") is None
+def test_parse_indicate_wrong_length_returns_empty() -> None:
+    """parse_indicate should return {} for payloads that are not 64 bytes."""
+    assert parse_indicate(b"\x00" * 32) == {}
+    assert parse_indicate(b"") == {}
 
 
-def test_parse_indicate_json_payload() -> None:
-    state = parse_indicate_payload(
-        b'{"state":"Cooking","cookMode":"Grill","oven":{"currentTemp":180}}'
-    )
-    assert state is not None
-    assert state.state == "Cooking"
-    assert state.cook_mode == "Grill"
-    assert state.oven_current_temp_c == 180
+def test_parse_notify_empty_returns_empty() -> None:
+    assert parse_notify(b"") == {}
 
 
 def test_apply_indicate_preserves_existing_state() -> None:
     """apply_indicate should carry over state fields that are not yet parsed."""
-    initial = NinjaState(connected=True, cook_mode="Grill")
+    initial = NinjaState(connected=True, cooking_mode="grill")
     updated = apply_indicate(initial, SAMPLE_INDICATE_1)
-    assert updated.cook_mode == "Grill"
+    # cooking_mode unknown in payload → preserved from initial
+    assert updated.cooking_mode == "grill"
     assert updated.raw_indicate == SAMPLE_INDICATE_1
 
 
@@ -88,9 +74,9 @@ def test_apply_notify_preserves_indicate_payload() -> None:
 def test_ninja_state_defaults() -> None:
     state = NinjaState()
     assert state.connected is False
-    assert state.state == "Unknown"
-    assert state.cook_mode == "NotSet"
-    assert state.oven_current_temp_c == 0
-    assert state.oven_desired_temp_c == 0
-    assert state.oven_time_left_s == 0
-    assert state.error == 0
+    assert state.power_on is None
+    assert state.cooking_mode is None
+    assert state.target_temp_c is None
+    assert state.probe_temp_c is None
+    assert state.timer_remaining_s is None
+    assert state.error_code is None

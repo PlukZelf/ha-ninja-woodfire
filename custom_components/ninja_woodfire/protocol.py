@@ -1,4 +1,4 @@
-"""Protocol layer for Ninja Woodfire Pro Connect XL BLE payloads.
+"""Protocol layer for Ninja Woodfire BLE payloads.
 
 The native library (libgrillcore_android.so) handles decryption.
 After decryption, the payload is a structured binary message.
@@ -77,7 +77,7 @@ class ProbeState:
 
 @dataclass
 class NinjaState:
-    """Parsed device state from the Ninja Woodfire Pro Connect XL.
+    """Parsed device state from the Ninja Woodfire.
 
     All fields default to safe/unknown values.
     Fields are populated from the GrillState data returned by the
