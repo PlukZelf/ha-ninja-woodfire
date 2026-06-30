@@ -29,8 +29,8 @@ Local Home Assistant integration for the **Ninja Woodfire Pro** outdoor cooking 
 
 | Model | Status |
 |-------|--------|
-| Ninja Woodfire Pro (OG-series) | ✅ Primary test device |
-| Other OG-series | 🔄 Likely compatible, untested |
+| Ninja Woodfire Pro Connect XL | ✅ Primary test device |
+| Other models | 🔄 Likely compatible, untested |
 
 ---
 
@@ -64,19 +64,6 @@ cp -r custom_components/ninja_woodfire /config/custom_components/
 
 Restart Home Assistant.
 
-### HACS icon / branding
-
-Gekozen bronbestand: `assets/ninja-woodfire-icon.png`.
-
-Beschikbare varianten:
-- `assets/icon.png` (originele resolutie)
-- `assets/icon-512.png`
-- `assets/icon-256.png`
-
-Voor zichtbaarheid in HACS wordt branding via Home Assistant Brands geleverd. Gebruik deze assets als bron voor een brands-PR onder `custom_integrations/ninja_woodfire`.
-
-Kant-en-klare brands bestanden staan ook in `brands/custom_integrations/ninja_woodfire/`.
-
 ---
 
 ## Setup
@@ -92,59 +79,38 @@ Kant-en-klare brands bestanden staan ook in `brands/custom_integrations/ninja_wo
 
 ### Sensors
 
-| Entity | Description |
-|--------|-------------|
-| `sensor.ninja_woodfire_state` | Device state (Idle / Preheating / Cooking / Complete / Error) |
-| `sensor.ninja_woodfire_cook_mode` | Cook mode (Grill / Smoke / AirCrisp / Roast / Bake / Broil / Dehydrate) |
-| `sensor.ninja_woodfire_grill_temperature` | Current grill temperature (°C) |
-| `sensor.ninja_woodfire_target_temperature` | Target temperature (°C) |
-| `sensor.ninja_woodfire_time_remaining` | Time remaining (seconds) |
-| `sensor.ninja_woodfire_cook_duration` | Total cook duration (seconds) |
-| `sensor.ninja_woodfire_cook_progress` | Cook progress (%) |
-| `sensor.ninja_woodfire_preheat_progress` | Preheat progress (%) |
-| `sensor.ninja_woodfire_probe_1_temperature` | Probe 1 temperature (°C) |
-| `sensor.ninja_woodfire_probe_1_target` | Probe 1 target temperature (°C) |
-| `sensor.ninja_woodfire_probe_2_temperature` | Probe 2 temperature (°C) |
-| `sensor.ninja_woodfire_probe_2_target` | Probe 2 target temperature (°C) |
+| Entity | Description | Status |
+|--------|-------------|--------|
+| `sensor.ninja_woodfire_state` | Device state (Idle / Preheating / Cooking / Complete / Error) | 🔄 In progress |
+| `sensor.ninja_woodfire_cook_mode` | Cook mode (Grill / Smoke / AirCrisp / Roast / Bake / Broil / Dehydrate) | 🔄 In progress |
+| `sensor.ninja_woodfire_grill_temperature` | Current grill temperature (°C) | 🔄 In progress |
+| `sensor.ninja_woodfire_target_temperature` | Target temperature (°C) | 🔄 In progress |
+| `sensor.ninja_woodfire_time_remaining` | Time remaining (seconds) | 🔄 In progress |
+| `sensor.ninja_woodfire_cook_duration` | Total cook duration (seconds) | 🔄 In progress |
+| `sensor.ninja_woodfire_cook_progress` | Cook progress (%) | 🔄 In progress |
+| `sensor.ninja_woodfire_preheat_progress` | Preheat progress (%) | 🔄 In progress |
+| `sensor.ninja_woodfire_probe_1_temperature` | Probe 1 temperature (°C) | 🔄 In progress |
+| `sensor.ninja_woodfire_probe_1_target` | Probe 1 target temperature (°C) | 🔄 In progress |
+| `sensor.ninja_woodfire_probe_2_temperature` | Probe 2 temperature (°C) | 🔄 In progress |
+| `sensor.ninja_woodfire_probe_2_target` | Probe 2 target temperature (°C) | 🔄 In progress |
 
 ### Binary Sensors
 
-| Entity | Description |
-|--------|-------------|
-| `binary_sensor.ninja_woodfire_connected` | BLE connection status |
-| `binary_sensor.ninja_woodfire_cooking` | Currently cooking |
-| `binary_sensor.ninja_woodfire_preheating` | Currently preheating |
-| `binary_sensor.ninja_woodfire_lid` | Lid open/closed |
-| `binary_sensor.ninja_woodfire_woodfire_active` | Woodfire/smoke active |
-| `binary_sensor.ninja_woodfire_probe_1_connected` | Probe 1 plugged in |
-| `binary_sensor.ninja_woodfire_probe_2_connected` | Probe 2 plugged in |
+| Entity | Description | Status |
+|--------|-------------|--------|
+| `binary_sensor.ninja_woodfire_connected` | BLE connection status | ✅ Working |
+| `binary_sensor.ninja_woodfire_cooking` | Currently cooking | 🔄 In progress |
+| `binary_sensor.ninja_woodfire_preheating` | Currently preheating | 🔄 In progress |
+| `binary_sensor.ninja_woodfire_lid` | Lid open/closed | ✅ Working |
+| `binary_sensor.ninja_woodfire_woodfire_active` | Woodfire/smoke active | 🔄 In progress |
+| `binary_sensor.ninja_woodfire_probe_1_connected` | Probe 1 plugged in | 🔄 In progress |
+| `binary_sensor.ninja_woodfire_probe_2_connected` | Probe 2 plugged in | 🔄 In progress |
 
 ---
 
 ## Architecture
 
-The integration is fully local — it communicates directly with the device over BLE:
-
-```
-Ninja Woodfire Pro
-  → BLE advertisements (NCEU<mac>)
-  → GATT Service: 0000fcbb-0000-1000-8000-00805f9b34fb
-    → Indicate (b004): encrypted device state
-    → Write (b002): encrypted commands
-  → Protocol layer (decrypt + parse)
-  → Data coordinator
-  → Home Assistant entities
-```
-
-### BLE Protocol
-
-The device uses an encrypted BLE protocol:
-- **Challenge-response** authentication on connect
-- **Session-based encryption** — key derived per connection
-- **Indication-based** state updates on characteristic `b004`
-- **Write commands** to characteristic `b002`
-
-The encryption is implemented in `libgrillcore_android.so` (Rust, ARM64). Protocol reverse-engineering is ongoing — see [`spec/`](spec/) for current findings.
+The integration is fully local — it communicates directly with the device over BLE. Device state is parsed and exposed as Home Assistant entities without any cloud connectivity.
 
 ---
 
@@ -190,23 +156,6 @@ Current status of reverse-engineering:
 
 See [`spec/gatt.md`](spec/gatt.md) for full protocol notes.
 
-### Running the BLE tools
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r tools/requirements.txt
-
-# Scan for nearby Ninja devices
-python tools/ble_scan.py --timeout 20 --name ninja
-
-# Dump GATT services and listen for notifications
-python tools/ble_gatt_dump.py <device-address> --listen --listen-timeout 120
-
-# Parse Android HCI log
-python tools/parse_btsnoop_att.py path/to/btsnoop_hci.log
-```
-
 ---
 
 ## Test Environment
@@ -218,7 +167,7 @@ Developed and tested on:
 | Home Assistant Core | 2026.6.4 |
 | Home Assistant OS | 18.0 |
 | Supervisor | 2026.06.2 |
-| Test device | Ninja Woodfire Pro (OG-series, EU) |
+| Test device | Ninja Woodfire Pro Connect XL |
 
 ---
 

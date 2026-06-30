@@ -45,6 +45,28 @@ def _is_ninja_device(info: BluetoothServiceInfoBleak) -> bool:
     return has_service and has_name
 
 
+def _get_manufacturer_name(info: BluetoothServiceInfoBleak) -> str | None:
+    """Extract manufacturer name from device advertisement."""
+    if not info.manufacturer_data:
+        return None
+
+    # Mapping of common manufacturer IDs
+    manufacturer_map = {
+        0x004c: "Apple",
+        0x004d: "Microsoft",
+        0x005d: "Broadcom",
+        0x006b: "SharkNinja",
+        0x0075: "Sennheiser",
+        0x0059: "Google",
+        0x00e0: "Google",
+    }
+
+    for mfg_id in info.manufacturer_data:
+        return manufacturer_map.get(mfg_id, f"Mfg: {mfg_id:#06x}")
+
+    return None
+
+
 class NinjaWoodfireConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle the config flow for Ninja Woodfire."""
 
@@ -93,13 +115,18 @@ class NinjaWoodfireConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Manual address entry with optional scan."""
+        """Manual address entry or device selection from discovered devices."""
         errors: dict[str, str] = {}
 
+        # Show all discovered Bluetooth devices, not just strictly filtered ones
         discovered: dict[str, str] = {}
         for info in async_discovered_service_info(self.hass):
-            if _is_ninja_device(info):
-                label = f"{info.name} ({info.address})"
+            if info.name and info.address:
+                mfg = _get_manufacturer_name(info)
+                if mfg:
+                    label = f"{info.name} ({mfg}) {info.address}"
+                else:
+                    label = f"{info.name} ({info.address})"
                 discovered[info.address] = label
 
         if user_input is not None:
