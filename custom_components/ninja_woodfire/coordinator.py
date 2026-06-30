@@ -58,9 +58,17 @@ class NinjaWoodfireCoordinator(DataUpdateCoordinator[NinjaState]):
         try:
             await self._client.start()
             self._backoff = _BACKOFF_INITIAL
-            self._state = NinjaState(connected=True)
+            # Do NOT set connected=True here.  The BLE link is up but we have
+            # not yet received any data from the device.  connected=True is set
+            # in _on_ble_data once the device actually sends a notification or
+            # indication, proving it is alive and communicating.
+            self._state = NinjaState(
+                raw_indicate=self._state.raw_indicate,
+                raw_notify=self._state.raw_notify,
+                connected=False,
+            )
             self.async_set_updated_data(self._state)
-            _LOGGER.debug("Connected to %s", self._address)
+            _LOGGER.debug("Connected to %s — waiting for first indication", self._address)
         except Exception as err:
             _LOGGER.warning(
                 "Initial connection to %s failed: %s — will retry",
@@ -140,13 +148,15 @@ class NinjaWoodfireCoordinator(DataUpdateCoordinator[NinjaState]):
         try:
             await self._client.start()
             self._backoff = _BACKOFF_INITIAL
+            # BLE link re-established — let _on_ble_data confirm connectivity
+            # by setting connected=True when the first indication arrives.
             self._state = NinjaState(
                 raw_indicate=self._state.raw_indicate,
                 raw_notify=self._state.raw_notify,
-                connected=True,
+                connected=False,
             )
             self.async_set_updated_data(self._state)
-            _LOGGER.info("Reconnected to %s", self._address)
+            _LOGGER.info("Reconnected to %s — waiting for first indication", self._address)
         except Exception as err:
             self._backoff = min(self._backoff * _BACKOFF_MULTIPLIER, _BACKOFF_MAX)
             _LOGGER.warning(
