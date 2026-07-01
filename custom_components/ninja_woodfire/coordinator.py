@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from datetime import timedelta
 
 from homeassistant.core import HomeAssistant, callback
@@ -19,6 +20,11 @@ _LOGGER = logging.getLogger(__name__)
 _BACKOFF_INITIAL = 60
 _BACKOFF_MAX = 300
 _BACKOFF_MULTIPLIER = 2
+
+# How long after the last received BLE packet we still consider the link
+# "live". The device pushes data regularly, so if nothing arrives within this
+# window the connection is treated as dead even if bleak still reports a link.
+_DATA_STALE_AFTER = UPDATE_INTERVAL * 2
 
 
 class NinjaWoodfireCoordinator(DataUpdateCoordinator[NinjaState]):
@@ -42,6 +48,8 @@ class NinjaWoodfireCoordinator(DataUpdateCoordinator[NinjaState]):
         self._connection_enabled: bool = True
         self._backoff: float = _BACKOFF_INITIAL
         self._reconnect_task: asyncio.Task | None = None
+        # Monotonic timestamp of the last received BLE packet (0 = never).
+        self._last_data_monotonic: float = 0.0
 
     @property
     def device_name(self) -> str:
@@ -50,6 +58,20 @@ class NinjaWoodfireCoordinator(DataUpdateCoordinator[NinjaState]):
     @property
     def address(self) -> str:
         return self._address
+
+    @property
+    def is_connection_live(self) -> bool:
+        """True only when the BLE link is up AND data arrived recently.
+
+        This is what the Connected sensor reflects: a real, communicating
+        link. A bare BLE link with no recent packets (or a stale link that
+        bleak has not yet noticed dropped) reports False.
+        """
+        if not self._client.is_connected:
+            return False
+        if not self._last_data_monotonic:
+            return False
+        return (time.monotonic() - self._last_data_monotonic) <= _DATA_STALE_AFTER
 
     async def async_start(self) -> None:
         """Connect the BLE client. Called once from __init__.py setup."""
@@ -98,6 +120,7 @@ class NinjaWoodfireCoordinator(DataUpdateCoordinator[NinjaState]):
                 self._reconnect_task.cancel()
                 self._reconnect_task = None
             await self._client.stop()
+            self._last_data_monotonic = 0.0
             self._state = NinjaState(
                 **{**self._state.__dict__, "connected": False}
             )
@@ -117,6 +140,7 @@ class NinjaWoodfireCoordinator(DataUpdateCoordinator[NinjaState]):
     def _on_disconnect(self) -> None:
         """Handle unexpected BLE disconnect."""
         _LOGGER.warning("Unexpected disconnect from %s", self._address)
+        self._last_data_monotonic = 0.0
         self._state = NinjaState(
             raw_indicate=self._state.raw_indicate,
             raw_notify=self._state.raw_notify,
@@ -177,7 +201,8 @@ class NinjaWoodfireCoordinator(DataUpdateCoordinator[NinjaState]):
         else:
             _LOGGER.debug("Unexpected notification from %s", uuid)
             return
-        self._state.connected = True
+        self._last_data_monotonic = time.monotonic()
+        self._state.connected = self.is_connection_live
         self.async_set_updated_data(self._state)
 
     async def _async_update_data(self) -> NinjaState:
@@ -186,4 +211,10 @@ class NinjaWoodfireCoordinator(DataUpdateCoordinator[NinjaState]):
             _LOGGER.debug("Heartbeat: not connected, scheduling reconnect")
             self._schedule_reconnect()
             raise UpdateFailed("Not connected")
+        # Refresh the connectivity flag: the link can go stale (no packets)
+        # even while bleak still reports it up. Reconnect if that happens.
+        self._state.connected = self.is_connection_live
+        if self._connection_enabled and not self._state.connected:
+            _LOGGER.debug("Heartbeat: link stale, scheduling reconnect")
+            self._schedule_reconnect()
         return self._state

@@ -40,12 +40,12 @@ class NinjaWoodfireConnectedSwitch(RestoreEntity, SwitchEntity):
     """
 
     _attr_has_entity_name = True
-    _attr_name = "Connected"
+    _attr_name = "Connection Enabled"
     _attr_icon = "mdi:bluetooth"
 
     def __init__(self, coordinator: NinjaWoodfireCoordinator) -> None:
         self._coordinator = coordinator
-        self._attr_unique_id = f"{coordinator.address}_connected_switch"
+        self._attr_unique_id = f"{coordinator.address}_connection_enabled_switch"
         self._attr_device_info = {
             "identifiers": {(DOMAIN, coordinator.address)},
             "name": coordinator.device_name,
