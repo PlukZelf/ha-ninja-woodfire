@@ -35,3 +35,14 @@
 - [ ] Add validation for cooking modes, temperature limits, and timers.
 - [ ] Document known device models and firmware behavior.
 - [ ] Prepare a first tagged release.
+
+### Planned control entities
+
+- [ ] **Cook function** (`select`) — Grill / Smoke / AirCrisp (Air Fry) / Roast / Bake / Broil / Dehydrate / MaxRoast / SlowCook.
+- [ ] **Cook type** (`select` or `switch`) — probe (thermometer) vs. time-based cooking.
+- [ ] **Target temperature** (`number`) — with per-mode min/max limits.
+- [ ] **Cook time** (`number` / duration) — for time-based cooking.
+- [ ] **Wood flavor** (`select`) — pellet flavor selection.
+
+> All control entities depend on write support to the grill; they land after
+> the protocol work in Sprint 2 is complete.

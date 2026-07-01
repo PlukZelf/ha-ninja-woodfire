@@ -107,7 +107,7 @@ class NinjaState:
     error: int = 0
 
     # Cook settings
-    cook_mode: str = "NotSet"       # Grill, Smoke, AirCrisp, Roast, Bake, Broil, Dehydrate
+    cook_mode: str = "NotSet"       # Grill, Smoke, AirCrisp, Roast, Bake, Broil, Dehydrate, MaxRoast, SlowCook
     cook_type: str = "NotSet"       # NotSet, Timed, Probe
 
     # Oven / grill temperatures
