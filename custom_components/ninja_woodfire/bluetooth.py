@@ -130,7 +130,7 @@ class NinjaWoodfireClient:
             return False
 
         if self._native.available():
-            encrypted = self._native.encrypt_data(self._address, payload)
+            encrypted = self._native.encrypt_data(payload, NINJA_WRITE_UUID)
             if encrypted:
                 payload = encrypted
             else:
@@ -166,7 +166,7 @@ class NinjaWoodfireClient:
         )
 
         if self._native.available() and uuid == NINJA_INDICATE_UUID:
-            decrypted = self._native.decrypt_data(self._address, raw)
+            decrypted = self._native.decrypt_data(raw, uuid)
             if decrypted:
                 self._on_data(uuid, decrypted)
                 return
