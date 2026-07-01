@@ -41,6 +41,7 @@ class NinjaWoodfireCoordinator(DataUpdateCoordinator[NinjaState]):
         self._device_name = name
         self._state = NinjaState()
         self._client = NinjaWoodfireClient(
+            hass=hass,
             address=address,
             on_data=self._on_ble_data,
             on_disconnect=self._on_disconnect,
