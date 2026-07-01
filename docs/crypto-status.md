@@ -135,6 +135,17 @@ constant at `7` across every mode tested so far (Dehydrate, Smoke-setup,
 Grill) — clearly NOT mode-related, real meaning still unknown. Field 4 and
 field 6 also still unconfirmed.
 
+**Fields 7 and 9 — new observation, cookType-related (tentative).** Comparing
+the same live capture: during Dehydrate/Smoke (both plain timed cooks, no
+probe target), `header[7]=0` and `header[9]=0`. Once switched to Grill with
+a probe1 target of 75°C, both flipped to `header[7]=1` and `header[9]=1`.
+Plausible reading: one or both encode **cookType** (Timed vs Probe) at the
+header level, separate from the per-probe `probes[2]`/`probes[4]` flags
+noted below — but since both fields changed together in this single test,
+they aren't yet independently distinguished from each other. Needs a
+Timed-cook-without-probe-target vs. Probe-cook contrast on a mode that isn't
+also a mode change (to rule out mode-correlation instead of cookType).
+
 **Probe fields — now well understood.** Tested with a probe-target cook
 (Grill, probe1 target 75°C): `probes[0]` went from the idle baseline
 `[0,1,0,0,0,0,0,0,0]` to `[0,1,1,0,1,0,0,75,0]`. This gives:
