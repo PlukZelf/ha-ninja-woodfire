@@ -109,11 +109,12 @@ transmitting) until the protocol is confirmed. See [ROADMAP.md](ROADMAP.md).
 
 | Entity | Type | Description |
 |--------|------|-------------|
-| `select.ninja_woodfire_cook_function` | select | Grill / Smoke / AirCrisp (Air Fry) / Roast / Bake / Broil / Dehydrate / MaxRoast / SlowCook |
+| `select.ninja_woodfire_cook_function` | select | Grill / Smoke / AirCrisp (Air Fry) / Roast / Bake / Broil / Dehydrate / MaxRoast / SlowCook (defaults to Grill) |
 | `select.ninja_woodfire_cook_type` | select | Probe (thermometer) vs. time-based |
-| `select.ninja_woodfire_wood_flavor` | select | Wood/pellet flavor |
-| `number.ninja_woodfire_target_temperature` | number | Target temperature (°C) |
-| `number.ninja_woodfire_cook_time` | number | Cook time (minutes) |
+| `number.ninja_woodfire_probe_1_target_temperature` | number | Probe 1 target (°C) — only for Probe cooks |
+| `number.ninja_woodfire_probe_2_target_temperature` | number | Probe 2 target (°C) — only for Probe cooks |
+| `number.ninja_woodfire_cook_time` | number | Cook time (minutes) — only for Timed cooks |
+| `switch.ninja_woodfire_wood_flavor` | switch | Wood flavor / smoke on/off (default off) |
 | `button.ninja_woodfire_start_cook` | button | Start the cook |
 | `button.ninja_woodfire_stop_cook` | button | Stop the cook |
 
@@ -131,9 +132,10 @@ entities:
   - type: divider
   - entity: select.ninja_woodfire_cook_function
   - entity: select.ninja_woodfire_cook_type
-  - entity: select.ninja_woodfire_wood_flavor
-  - entity: number.ninja_woodfire_target_temperature
+  - entity: switch.ninja_woodfire_wood_flavor
   - entity: number.ninja_woodfire_cook_time
+  - entity: number.ninja_woodfire_probe_1_target_temperature
+  - entity: number.ninja_woodfire_probe_2_target_temperature
   - type: divider
   - entity: button.ninja_woodfire_start_cook
   - entity: button.ninja_woodfire_stop_cook
