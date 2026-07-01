@@ -101,9 +101,75 @@ verified against the actual decompiled control flow, not just a bit-count
 coincidence).
 
 Field **semantics** (which field is target temp, current temp, cook mode,
-etc.) are not yet mapped — this requires live captures correlated against
-known grill/app state (idle vs cooking, probe states, etc.) and is the next
-piece of work.
+etc.) are being mapped via live captures correlated against known grill/app
+state changes (idle vs cooking, probe states, etc.) — see
+`tools/live_decode.py`, a continuous passive BLE scanner (no phone/app
+needed) that decodes and prints each new state in real time for this
+purpose.
+
+### Header field mapping (confirmed so far, HEADER_WIDTHS indices)
+
+Confirmed by correlating live captures against a real cook session (target
+temp changed from 40 to 45 in the app while `tools/live_decode.py` was
+running):
+
+| Index | Meaning | Evidence |
+| --- | --- | --- |
+| 13 | Cook time **remaining**, in seconds | Counted down steadily in real time (e.g. 21513 -> 21469 over 44 real-world seconds); cross-checked against the app's displayed remaining time (~5h56m) at `21600 - elapsed = 21469` (5h57m49s) — within ~2 min, consistent with the app rounding its display to whole minutes. |
+| 14 | Live temperature reading (probably grill/oven temp) | Small continuous fluctuation (91-96) consistent with real sensor noise, unlike the fixed setpoint fields. |
+| 15 | **Probe 1 live temperature**, whole degrees Celsius (no scaling) | Constant `18` for the entire session while the probe sat at room temp (matched the user's own app reading of "18°C"). Confirmed dynamically: rose to `25` then settled `24`, `23` when the user held the probe tip in their palm, tracking real-world hand-contact warming/cooling exactly. **Not** in the `probes[]` sub-block — despite being physically a probe reading, it's encoded directly in the header. |
+| 18 | Cook time **set/total**, in seconds | Constant `21600` (= 6h00m) throughout the whole session — matches `field[13]` counting down from it. |
+| 19 | **Target/set temperature**, whole degrees (no scaling) | Flipped from `40` to `45` at the exact moment the user changed the app's target temp from 40°C to 45°C. |
+
+**Cook mode — field 3 (revised, second correction):** an earlier version of
+this doc guessed field 2, then briefly fields 3+4 jointly. A third real mode
+change (Dehydrate -> Smoke @ 120°C/2h04m -> Grill w/ probe1 target 75°C)
+resolves it: field 3 alone matches `CLAUDE.md`'s documented `cookMode` enum
+order (`NotSet, Grill, AirCrisp, Roast, Bake, Broil, Smoke, Dehydrate,
+MaxRoast, SlowCook`) on BOTH confirmed endpoints — `7` during Dehydrate
+(index 7) and `1` during Grill (index 1). The one earlier "Smoke=`2`"
+reading doesn't fit this enum (Smoke would be index 6) and is most likely a
+transient mid-navigation UI state captured while the user was still
+scrolling the app's mode picker, not committed Smoke mode. Field 2 stayed
+constant at `7` across every mode tested so far (Dehydrate, Smoke-setup,
+Grill) — clearly NOT mode-related, real meaning still unknown. Field 4 and
+field 6 also still unconfirmed.
+
+**Probe fields — now well understood.** Tested with a probe-target cook
+(Grill, probe1 target 75°C): `probes[0]` went from the idle baseline
+`[0,1,0,0,0,0,0,0,0]` to `[0,1,1,0,1,0,0,75,0]`. This gives:
+
+| `probes[]` index | Meaning | Evidence |
+| --- | --- | --- |
+| 1 | Probe **plugged in** flag | Constant `1` all session (user confirmed probe physically connected throughout) — not yet contrast-tested against physically unplugging it. |
+| 2 | Probe **target-temp-is-set** flag (or "probe cook active") | `0` during plain timed cooks (Dehydrate/Smoke, no probe target set), `1` once a probe target temp was configured (Grill w/ 75°C target). |
+| 4 | Related active/armed flag (co-varies with index 2) | Same `0`->`1` transition as index 2 in this test — not yet independently distinguished; could be a second bit of the same conceptual state (e.g. "target set" vs "actively tracking toward target"). |
+| 7 (10-bit field) | Probe **target temperature**, whole degrees Celsius | Exactly `75` — matches the user's set probe1 target of 75°C precisely. |
+
+Index 15's earlier finding (probe1's *live/current* temperature reading
+lives in the **header**, not in `probes[]`) still stands — `probes[]`
+appears to be specifically about the *target*/armed state, while current
+readings are reported via the header fields instead.
+
+**Preheat-related fields — partially observed, not yet nailed down.**
+During Grill-mode preheating (before pressing "skip preheating" at ~1%
+progress): `header[13]=600`, `header[18]=100`. Immediately after skipping:
+`header[13]=60`, `header[18]=23`, `header[17]` flipped `0`->`1`. Plausible
+reading: `header[18]` may be a preheat-related estimate/progress value (100
+-> lower after skip) and `header[17]` an "actively cooking"/"preheat
+skipped" flag, but this needs a CLEAN preheat-to-completion observation
+(0% -> 100% without skipping) to confirm rather than guess from a single
+skip event. `header[19]` read `8` during this Grill+probe session, NOT a
+literal oven temperature — the app only showed a qualitative "grill temp
+hoog" (high) setting here, no explicit numeric target, suggesting
+`header[19]` may encode a **heat-level preset** (e.g. 1-10 scale) rather
+than literal degrees when no explicit numeric grill temperature is set —
+context-dependent on cook type, needs more testing to confirm.
+
+Still unmapped: the `extra_byte` after the MAC, and the final 32-bit field
+(changes every single advertisement, even with the same header — likely a
+rolling counter, sequence number, or short-term nonce/checksum, not
+app-visible state).
 
 ## GATT session key — unsolved, lower priority
 
