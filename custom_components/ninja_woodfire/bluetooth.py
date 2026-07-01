@@ -8,6 +8,9 @@ from collections.abc import Callable
 from bleak import BleakClient
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.exc import BleakError
+from bleak_retry_connector import establish_connection
+from homeassistant.components import bluetooth
+from homeassistant.core import HomeAssistant
 
 from .const import (
     NINJA_INDICATE_UUID,
@@ -34,12 +37,14 @@ class NinjaWoodfireClient:
 
     def __init__(
         self,
+        hass: HomeAssistant,
         address: str,
         on_data: NotifyCallback,
         on_disconnect: DisconnectCallback | None = None,
         *,
         connection_timeout: float = 20.0,
     ) -> None:
+        self._hass = hass
         self._address = address
         self._on_data = on_data
         self._on_disconnect = on_disconnect
@@ -54,12 +59,21 @@ class NinjaWoodfireClient:
     async def start(self) -> None:
         """Connect, validate GATT structure, and subscribe to notifications."""
         _LOGGER.debug("Connecting to %s", self._address)
-        client = BleakClient(
+        ble_device = bluetooth.async_ble_device_from_address(
+            self._hass, self._address, connectable=True
+        )
+        if ble_device is None:
+            raise BleakError(
+                f"Device {self._address} not found — not currently in range"
+            )
+
+        client = await establish_connection(
+            BleakClient,
+            ble_device,
             self._address,
             disconnected_callback=self._handle_disconnect,
             timeout=self._connection_timeout,
         )
-        await client.connect()
         _LOGGER.debug("Connected to %s — validating GATT structure", self._address)
 
         if not await self._validate_gatt(client):

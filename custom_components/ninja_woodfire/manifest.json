@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "config_flow": true,
   "dependencies": ["bluetooth"],
-  "requirements": [],
+  "requirements": ["bleak-retry-connector>=3.5.0"],
   "bluetooth": [
     {
       "local_name": "NCEU*",
