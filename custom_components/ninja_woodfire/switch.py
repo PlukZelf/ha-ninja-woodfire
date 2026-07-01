@@ -9,8 +9,10 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import NinjaWoodfireConfigEntry
+from . import commands
 from .const import DOMAIN
 from .coordinator import NinjaWoodfireCoordinator
 
@@ -23,7 +25,12 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator: NinjaWoodfireCoordinator = entry.runtime_data
-    async_add_entities([NinjaWoodfireConnectedSwitch(coordinator)])
+    async_add_entities(
+        [
+            NinjaWoodfireConnectedSwitch(coordinator),
+            NinjaWoodfireWoodFlavorSwitch(coordinator),
+        ]
+    )
 
 
 class NinjaWoodfireConnectedSwitch(RestoreEntity, SwitchEntity):
@@ -87,3 +94,40 @@ class NinjaWoodfireConnectedSwitch(RestoreEntity, SwitchEntity):
         self._is_on = False
         self.async_write_ha_state()
         await self._coordinator.async_set_connected(False)
+
+
+class NinjaWoodfireWoodFlavorSwitch(
+    CoordinatorEntity[NinjaWoodfireCoordinator], SwitchEntity
+):
+    """Wood flavor (smoke) on/off. Reflects the grill's woodFire state.
+
+    Defaults to off; the only other state is on.
+    """
+
+    _attr_has_entity_name = True
+    _attr_name = "Wood Flavor"
+    _attr_icon = "mdi:fire"
+
+    def __init__(self, coordinator: NinjaWoodfireCoordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.address}_wood_flavor"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, coordinator.address)},
+            "name": coordinator.device_name,
+            "manufacturer": "Ninja",
+            "model": "Woodfire Pro",
+        }
+
+    @property
+    def is_on(self) -> bool:
+        if self.coordinator.data is None:
+            return False
+        return self.coordinator.data.wood_fire
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        await self.coordinator.async_send_command(lambda: commands.set_wood_flavor(True))
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        await self.coordinator.async_send_command(
+            lambda: commands.set_wood_flavor(False)
+        )

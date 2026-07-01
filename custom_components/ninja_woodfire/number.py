@@ -22,19 +22,35 @@ from .protocol import NinjaState
 class NinjaNumberDescription(NumberEntityDescription):
     current_fn: Callable[[NinjaState], float | None]
     command_fn: Callable[[int], bytes]
+    # When set, the entity is only available while this returns True (e.g. cook
+    # time only applies to Timed cooks, probe targets only to Probe cooks).
+    available_fn: Callable[[NinjaState], bool] | None = None
 
 
 NUMBER_DESCRIPTIONS: tuple[NinjaNumberDescription, ...] = (
     NinjaNumberDescription(
-        key="target_temperature",
-        name="Target Temperature",
+        key="probe1_target_temperature",
+        name="Probe 1 Target Temperature",
         icon="mdi:thermometer",
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         native_min_value=commands.MIN_TEMP_C,
         native_max_value=commands.MAX_TEMP_C,
         native_step=5,
-        current_fn=lambda s: s.oven_desired_temp_c or None,
-        command_fn=commands.set_target_temp,
+        current_fn=lambda s: s.probe1.desired_temp_c or None,
+        command_fn=commands.set_probe1_target_temp,
+        available_fn=lambda s: s.cook_type == "Probe",
+    ),
+    NinjaNumberDescription(
+        key="probe2_target_temperature",
+        name="Probe 2 Target Temperature",
+        icon="mdi:thermometer",
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        native_min_value=commands.MIN_TEMP_C,
+        native_max_value=commands.MAX_TEMP_C,
+        native_step=5,
+        current_fn=lambda s: s.probe2.desired_temp_c or None,
+        command_fn=commands.set_probe2_target_temp,
+        available_fn=lambda s: s.cook_type == "Probe",
     ),
     NinjaNumberDescription(
         key="cook_time",
@@ -44,8 +60,9 @@ NUMBER_DESCRIPTIONS: tuple[NinjaNumberDescription, ...] = (
         native_min_value=commands.MIN_COOK_MINUTES,
         native_max_value=commands.MAX_COOK_MINUTES,
         native_step=1,
-        current_fn=lambda s: (s.oven_time_set_s // 60) or None,
+        current_fn=lambda s: s.oven_time_set_s // 60,
         command_fn=commands.set_cook_time,
+        available_fn=lambda s: s.cook_type == "Timed",
     ),
 )
 
@@ -80,6 +97,17 @@ class NinjaWoodfireNumber(CoordinatorEntity[NinjaWoodfireCoordinator], NumberEnt
             "manufacturer": "Ninja",
             "model": "Woodfire Pro",
         }
+
+    @property
+    def available(self) -> bool:
+        if not super().available:
+            return False
+        available_fn = self.entity_description.available_fn
+        if available_fn is None:
+            return True
+        if self.coordinator.data is None:
+            return False
+        return available_fn(self.coordinator.data)
 
     @property
     def native_value(self) -> float | None:

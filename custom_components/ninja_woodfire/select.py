@@ -29,7 +29,11 @@ SELECT_DESCRIPTIONS: tuple[NinjaSelectDescription, ...] = (
         name="Cook Function",
         icon="mdi:food",
         options=list(commands.COOK_MODES),
-        current_fn=lambda s: s.cook_mode if s.cook_mode in commands.COOK_MODES else None,
+        current_fn=lambda s: (
+            s.cook_mode
+            if s.cook_mode in commands.COOK_MODES
+            else commands.DEFAULT_COOK_MODE
+        ),
         command_fn=commands.set_cook_mode,
     ),
     NinjaSelectDescription(
@@ -39,14 +43,6 @@ SELECT_DESCRIPTIONS: tuple[NinjaSelectDescription, ...] = (
         options=list(commands.COOK_TYPES),
         current_fn=lambda s: s.cook_type if s.cook_type in commands.COOK_TYPES else None,
         command_fn=commands.set_cook_type,
-    ),
-    NinjaSelectDescription(
-        key="wood_flavor",
-        name="Wood Flavor",
-        icon="mdi:tree",
-        options=list(commands.WOOD_FLAVORS),
-        current_fn=lambda s: None,
-        command_fn=commands.set_wood_flavor,
     ),
 )
 
