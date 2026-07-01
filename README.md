@@ -7,7 +7,7 @@
 
 A local Home Assistant integration for the Ninja Woodfire Pro outdoor grill. It talks to the grill directly over Bluetooth Low Energy, so there's no cloud and no Ninja account involved.
 
-**This is a work in progress.** BLE connectivity, the lid sensor and the connectivity sensor work today. The device protects its state and commands, and getting full read/write support working is the current focus — until it's done, most sensors won't report real values yet. See [ROADMAP.md](ROADMAP.md) for where things stand.
+**This is a work in progress.** BLE connectivity, the lid sensor and the connectivity sensor work today. The device protects its state and commands, and getting full read/write support working is the current focus — until it's done, most sensors won't report real values yet. See [ROADMAP.md](ROADMAP.md) for where things stand, and [docs/crypto-status.md](docs/crypto-status.md) for reverse-engineering progress on the encryption (the passive advertisement channel's crypto is now fully decoded; wiring it into the integration's sensors is the next step).
 
 <br clear="left" />
 
@@ -169,7 +169,12 @@ tests/                              Tests
 
 ### Protocol status
 
-The GATT layout and the BLE connection flow are documented. What's left is full read/write support for the grill's protected state and commands, which is an ongoing effort. The internals aren't documented publicly here — if you're working on this and want to compare notes, open an issue.
+The GATT layout and the BLE connection flow are documented. The device uses two separate BLE channels with unrelated encryption:
+
+- **Advertisements** (no connection needed): fully decoded as of 2026-07-01 — see [docs/crypto-status.md](docs/crypto-status.md) for the crypto details and which fields are mapped (cook mode, temperatures, cook time, probe state). Not yet wired into the shipped sensors — it currently depends on a dev-only emulator tool, not something end users can install; a pure-Python port is planned.
+- **GATT** (used for sending commands): still unsolved — its session key is negotiated fresh per connection and isn't derivable offline.
+
+If you're working on this and want to compare notes, open an issue.
 
 ### Tests
 
