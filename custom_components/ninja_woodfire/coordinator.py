@@ -12,7 +12,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .bluetooth import NinjaWoodfireClient
-from .commands import CommandNotSupported
+from .commands import OPTIMISTIC_CONTROLS, CommandNotSupported
 from .const import DOMAIN, NINJA_INDICATE_UUID, NINJA_NOTIFY_UUID, UPDATE_INTERVAL
 from .protocol import NinjaState, apply_indicate, apply_notify
 
@@ -49,6 +49,10 @@ class NinjaWoodfireCoordinator(DataUpdateCoordinator[NinjaState]):
             on_disconnect=self._on_disconnect,
         )
         self._connection_enabled: bool = True
+        # STUB: optimistically-selected cook type, used only while
+        # OPTIMISTIC_CONTROLS is True so the time/probe entities can toggle
+        # their availability without a real device. Remove once decoding works.
+        self._optimistic_cook_type: str | None = None
         self._backoff: float = _BACKOFF_INITIAL
         self._reconnect_task: asyncio.Task | None = None
         # Monotonic timestamp of the last received BLE packet (0 = never).
@@ -207,6 +211,24 @@ class NinjaWoodfireCoordinator(DataUpdateCoordinator[NinjaState]):
         self._last_data_monotonic = time.monotonic()
         self._state.connected = self.is_connection_live
         self.async_set_updated_data(self._state)
+
+    @property
+    def effective_cook_type(self) -> str:
+        """Cook type that drives entity availability.
+
+        STUB: while OPTIMISTIC_CONTROLS is True this prefers the locally
+        selected cook type so the time/probe controls become settable without
+        a real device. Once decoding works this should just return the device's
+        reported cook type.
+        """
+        if OPTIMISTIC_CONTROLS and self._optimistic_cook_type is not None:
+            return self._optimistic_cook_type
+        return self.data.cook_type if self.data else "NotSet"
+
+    def set_optimistic_cook_type(self, cook_type: str) -> None:
+        """STUB: remember the selected cook type and refresh dependent entities."""
+        self._optimistic_cook_type = cook_type
+        self.async_update_listeners()
 
     async def async_send_command(self, builder: Callable[[], bytes]) -> bool:
         """Build a command payload and send it to the device.
