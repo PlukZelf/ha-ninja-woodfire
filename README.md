@@ -3,11 +3,13 @@
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
+<img src="assets/icon-512.png" alt="Ninja Woodfire icon" width="88" align="left" />
+
 A local Home Assistant integration for the Ninja Woodfire Pro outdoor grill. It talks to the grill directly over Bluetooth Low Energy, so there's no cloud and no Ninja account involved.
 
 **This is a work in progress.** BLE connectivity, the lid sensor and the connectivity sensor work today. The device protects its state and commands, and getting full read/write support working is the current focus — until it's done, most sensors won't report real values yet. See [ROADMAP.md](ROADMAP.md) for where things stand.
 
-![Ninja Woodfire icon](assets/icon-512.png)
+<br clear="left" />
 
 ## What works today
 
