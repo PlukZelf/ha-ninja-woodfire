@@ -12,7 +12,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .bluetooth import NinjaWoodfireClient
-from .commands import OPTIMISTIC_CONTROLS, CommandNotSupported
+from .commands import DEFAULT_COOK_TYPE, OPTIMISTIC_CONTROLS, CommandNotSupported
 from .const import DOMAIN, NINJA_INDICATE_UUID, NINJA_NOTIFY_UUID, UPDATE_INTERVAL
 from .protocol import NinjaState, apply_indicate, apply_notify
 
@@ -223,7 +223,9 @@ class NinjaWoodfireCoordinator(DataUpdateCoordinator[NinjaState]):
         """
         if OPTIMISTIC_CONTROLS and self._optimistic_cook_type is not None:
             return self._optimistic_cook_type
-        return self.data.cook_type if self.data else "NotSet"
+        if self.data and self.data.cook_type in ("Timed", "Probe"):
+            return self.data.cook_type
+        return DEFAULT_COOK_TYPE
 
     def set_optimistic_cook_type(self, cook_type: str) -> None:
         """STUB: remember the selected cook type and refresh dependent entities."""

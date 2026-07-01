@@ -30,6 +30,9 @@ DEFAULT_COOK_MODE = "Grill"
 # Probe-driven vs. time-driven cooking.
 COOK_TYPES: tuple[str, ...] = ("Timed", "Probe")
 
+# Default cook type when the device has not reported one yet.
+DEFAULT_COOK_TYPE = "Timed"
+
 # Temperature and time limits. TODO: confirm real per-mode limits from the app.
 MIN_TEMP_C = 40
 MAX_TEMP_C = 260
