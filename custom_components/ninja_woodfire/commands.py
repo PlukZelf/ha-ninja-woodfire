@@ -24,16 +24,16 @@ COOK_MODES: tuple[str, ...] = (
     "SlowCook",
 )
 
+# Default cook function when the device has not reported one yet.
+DEFAULT_COOK_MODE = "Grill"
+
 # Probe-driven vs. time-driven cooking.
 COOK_TYPES: tuple[str, ...] = ("Timed", "Probe")
-
-# Wood/pellet flavors. TODO: confirm the exact option set the device accepts.
-WOOD_FLAVORS: tuple[str, ...] = ("Robust", "Rich", "Savory")
 
 # Temperature and time limits. TODO: confirm real per-mode limits from the app.
 MIN_TEMP_C = 40
 MAX_TEMP_C = 260
-MIN_COOK_MINUTES = 1
+MIN_COOK_MINUTES = 0
 MAX_COOK_MINUTES = 1440
 
 
@@ -52,11 +52,15 @@ def set_cook_type(cook_type: str) -> bytes:
     raise CommandNotSupported(_PENDING)
 
 
-def set_wood_flavor(flavor: str) -> bytes:
+def set_wood_flavor(enabled: bool) -> bytes:
     raise CommandNotSupported(_PENDING)
 
 
-def set_target_temp(celsius: int) -> bytes:
+def set_probe1_target_temp(celsius: int) -> bytes:
+    raise CommandNotSupported(_PENDING)
+
+
+def set_probe2_target_temp(celsius: int) -> bytes:
     raise CommandNotSupported(_PENDING)
 
 
