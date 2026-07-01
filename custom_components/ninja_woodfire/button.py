@@ -68,5 +68,13 @@ class NinjaWoodfireButton(CoordinatorEntity[NinjaWoodfireCoordinator], ButtonEnt
             "model": "Woodfire Pro",
         }
 
+    @property
+    def available(self) -> bool:
+        # STUB: while optimistic, stay usable even without a live connection so
+        # the UI can be exercised. Remove once decoding works.
+        if commands.OPTIMISTIC_CONTROLS:
+            return True
+        return super().available
+
     async def async_press(self) -> None:
         await self.coordinator.async_send_command(self.entity_description.command_fn)

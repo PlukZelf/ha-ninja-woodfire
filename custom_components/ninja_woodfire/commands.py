@@ -37,6 +37,24 @@ MIN_COOK_MINUTES = 0
 MAX_COOK_MINUTES = 1440
 
 
+# =============================================================================
+# TEMPORARY / STUB BEHAVIOR — REMOVE ONCE DECODING WORKS
+# -----------------------------------------------------------------------------
+# The write payload format is not reverse-engineered yet, so no command can
+# actually reach the grill. To let the UI be used and demoed in the meantime,
+# the control entities run in OPTIMISTIC mode: setting a value updates only the
+# local Home Assistant state, nothing is transmitted.
+#
+# When the command protocol is confirmed:
+#   1. Fill in the builder functions below with the real payload bytes.
+#   2. Set OPTIMISTIC_CONTROLS = False so entities reflect the device's actual
+#      reported state instead of the locally-remembered value.
+# Search the codebase for OPTIMISTIC_CONTROLS to find every spot that depends
+# on this flag.
+# =============================================================================
+OPTIMISTIC_CONTROLS = True
+
+
 class CommandNotSupported(RuntimeError):
     """Raised when a command cannot be built yet (protocol not confirmed)."""
 

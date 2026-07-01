@@ -117,17 +117,39 @@ class NinjaWoodfireWoodFlavorSwitch(
             "manufacturer": "Ninja",
             "model": "Woodfire Pro",
         }
+        # STUB: locally remembered state, used only while
+        # commands.OPTIMISTIC_CONTROLS is True. See commands.py.
+        self._optimistic_on: bool | None = None
+
+    @property
+    def available(self) -> bool:
+        # STUB: while optimistic, stay usable even without a live connection so
+        # the UI can be exercised. Remove once decoding works.
+        if commands.OPTIMISTIC_CONTROLS:
+            return True
+        return super().available
 
     @property
     def is_on(self) -> bool:
+        if commands.OPTIMISTIC_CONTROLS and self._optimistic_on is not None:
+            return self._optimistic_on
         if self.coordinator.data is None:
             return False
         return self.coordinator.data.wood_fire
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        await self.coordinator.async_send_command(lambda: commands.set_wood_flavor(True))
+        await self._async_set(True)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
+        await self._async_set(False)
+
+    async def _async_set(self, enabled: bool) -> None:
+        # TEMPORARY: nothing is transmitted yet (see commands.OPTIMISTIC_CONTROLS).
+        # Remember the state locally so the UI reflects it, then attempt the
+        # (currently no-op) command. Remove the optimistic block once decoding works.
+        if commands.OPTIMISTIC_CONTROLS:
+            self._optimistic_on = enabled
+            self.async_write_ha_state()
         await self.coordinator.async_send_command(
-            lambda: commands.set_wood_flavor(False)
+            lambda: commands.set_wood_flavor(enabled)
         )

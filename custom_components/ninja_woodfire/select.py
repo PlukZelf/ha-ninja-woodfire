@@ -77,14 +77,36 @@ class NinjaWoodfireSelect(CoordinatorEntity[NinjaWoodfireCoordinator], SelectEnt
             "manufacturer": "Ninja",
             "model": "Woodfire Pro",
         }
+        # STUB: locally remembered selection, used only while
+        # commands.OPTIMISTIC_CONTROLS is True. See commands.py.
+        self._optimistic_option: str | None = None
+
+    @property
+    def available(self) -> bool:
+        # STUB: while optimistic, stay usable even without a live connection so
+        # the UI can be exercised. Remove once decoding works.
+        if commands.OPTIMISTIC_CONTROLS:
+            return True
+        return super().available
 
     @property
     def current_option(self) -> str | None:
+        if commands.OPTIMISTIC_CONTROLS and self._optimistic_option is not None:
+            return self._optimistic_option
         if self.coordinator.data is None:
             return None
         return self.entity_description.current_fn(self.coordinator.data)
 
     async def async_select_option(self, option: str) -> None:
+        # TEMPORARY: nothing is transmitted yet (see commands.OPTIMISTIC_CONTROLS).
+        # Remember the choice locally so the UI reflects it, then attempt the
+        # (currently no-op) command. Remove the optimistic block once decoding works.
+        if commands.OPTIMISTIC_CONTROLS:
+            self._optimistic_option = option
+            # Cook type drives the availability of the time/probe controls.
+            if self.entity_description.key == "cook_type":
+                self.coordinator.set_optimistic_cook_type(option)
+            self.async_write_ha_state()
         await self.coordinator.async_send_command(
             lambda: self.entity_description.command_fn(option)
         )
