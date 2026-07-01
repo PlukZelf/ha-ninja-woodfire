@@ -2,6 +2,12 @@
 
 This document records confirmed Bluetooth Low Energy GATT details for the Ninja Woodfire Pro integration.
 
+> **Note:** this covers the GATT (post-`Connect`) channel only, used for
+> sending commands. Its session-key crypto remains unsolved. For **reading**
+> grill state (temperatures, cook mode, timers, probes), the **passive
+> advertisement** channel is a separate, already-decoded path that needs no
+> connection at all — see [docs/crypto-status.md](../docs/crypto-status.md).
+
 ## Confirmed Device
 
 Observed with nRF Connect:

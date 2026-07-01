@@ -12,7 +12,30 @@ The project is split into three layers:
 
 ## Bluetooth Strategy
 
-The previous investigation showed that obtaining Android HCI logs can be unreliable on recent Pixel devices. The preferred path is direct discovery from the Raspberry Pi or the Home Assistant host using Python and `bleak`.
+The device exposes state through **two separate BLE channels with unrelated
+encryption** (see [docs/crypto-status.md](docs/crypto-status.md) for the full
+reverse-engineering detail):
+
+1. **Passive advertisements** — broadcast continuously, no connection
+   needed. Encrypted with a **static** AES-256 key (embedded in the vendor
+   app's native library, not per-device/per-session). Fully decoded as of
+   2026-07-01: the 344-bit field layout is known and correlated against real
+   cook sessions for cook mode, temperatures, cook time, and probe state.
+   This is the preferred path for **read-only monitoring** — it needs no BLE
+   connection at all, so it never conflicts with the Ninja mobile app (see
+   `switch.ninja_woodfire_connection_enabled`, which only matters for the
+   GATT path below).
+2. **GATT** (after `Connect`) — a per-session key negotiated fresh on every
+   connection, held only in-memory on both ends, never persisted. Unsolved.
+   Needed only for **sending commands** (temperature/mode/timer changes,
+   start/stop cook) — out of scope until reverse-engineered separately.
+
+The previous investigation showed that obtaining Android HCI logs can be
+unreliable on recent Pixel devices. The preferred path for further protocol
+work is direct discovery from the Raspberry Pi or the Home Assistant host
+using Python and `bleak`, or (for the advert channel specifically)
+`tools/live_decode.py`, which decodes passing adverts continuously without
+needing a phone at all.
 
 Initial tooling should:
 
