@@ -1,60 +1,40 @@
 # HA Ninja Woodfire
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
-[![HA Version](https://img.shields.io/badge/Home%20Assistant-2026.6%2B-blue)](https://www.home-assistant.io/)
+[![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-Local Home Assistant integration for the **Ninja Woodfire Pro** outdoor cooking appliance. Connects via Bluetooth Low Energy — no cloud, no Ninja account required.
+A local Home Assistant integration for the Ninja Woodfire Pro outdoor grill. It talks to the grill directly over Bluetooth Low Energy, so there's no cloud and no Ninja account involved.
 
-> **Status:** Active development — protocol reverse-engineering in progress. Basic BLE connectivity works; full state parsing and control commands are being implemented.
+**This is a work in progress.** BLE connectivity, the lid sensor and the connectivity sensor work today. The device protects its state and commands, and getting full read/write support working is the current focus — until it's done, most sensors won't report real values yet. See [ROADMAP.md](ROADMAP.md) for where things stand.
 
-![Ninja Woodfire icon preview](assets/icon-512.png)
+![Ninja Woodfire icon](assets/icon-512.png)
 
----
+## What works today
 
-## Features
+- A local BLE connection to the grill, with automatic reconnect.
+- A **Connected** sensor that reflects the live BLE link.
+- A **Lid** sensor (open/closed).
+- A **Connection Enabled** switch that lets you hand the grill back to the Ninja mobile app (see below).
 
-- 🔵 **Local BLE connection** — no cloud dependency
-- 🌡️ **Temperature sensors** — grill, target, probe 1 & 2
-- ⏱️ **Timer** — cook duration and time remaining
-- 📊 **Progress** — preheat and cook progress
-- 🔥 **State** — Idle, Preheating, Cooking, Complete, Error
-- 🪵 **Woodfire** — smoke/woodfire active indicator
-- 🔓 **Lid sensor** — open/closed
-- 🔌 **Probe detection** — plugged in / active
+Everything else — temperatures, cook state, probes, timers — is wired up as entities but waits on the encryption work before it reports live data.
 
----
+## Supported devices
 
-## Supported Devices
-
-| Model | Status |
-|-------|--------|
-| Ninja Woodfire Pro Connect XL | ✅ Primary test device |
-| Other models | 🔄 Likely compatible, untested |
-
----
+Developed against a **Ninja Woodfire Pro Connect XL**. Other Woodfire models are likely compatible but haven't been tested. If you have one, captures and reports are welcome.
 
 ## Requirements
 
-| Component | Version |
-|-----------|---------|
-| Home Assistant OS | — |
-| Home Assistant Core | 2026.6.0+ |
-| Hardware | ARM64 host (Raspberry Pi 4/5, HA Yellow, HA Green) |
-| Bluetooth | Required — built-in or USB dongle |
-
-> **Note:** The integration requires an ARM64 host for full BLE decryption support. On x86_64 hosts the integration will connect but cannot decrypt device state until the protocol is fully documented.
-
----
+- Home Assistant Core 2026.6.0 or newer.
+- A Bluetooth adapter reachable by HA (built-in or USB dongle).
+- An ARM64 host (Raspberry Pi 4/5, HA Yellow, HA Green) is recommended. The integration will connect on x86_64, but full state support is only available on ARM64 for now.
 
 ## Installation
 
-### HACS (recommended)
+### HACS
 
-1. Open HACS → Integrations → ⋮ → *Custom repositories*
-2. Add `https://github.com/PlukZelf/ha-ninja-woodfire`, category *Integration*
-3. Install **Ninja Woodfire**
-4. Restart Home Assistant
+1. HACS → Integrations → ⋮ → *Custom repositories*.
+2. Add `https://github.com/PlukZelf/ha-ninja-woodfire` as an *Integration*.
+3. Install **Ninja Woodfire** and restart Home Assistant.
 
 ### Manual
 
@@ -62,130 +42,123 @@ Local Home Assistant integration for the **Ninja Woodfire Pro** outdoor cooking 
 cp -r custom_components/ninja_woodfire /config/custom_components/
 ```
 
-Restart Home Assistant.
-
----
+Then restart Home Assistant.
 
 ## Setup
 
-1. Make sure your Ninja Woodfire Pro is powered on and nearby
-2. Go to **Settings → Devices & Services → Add Integration**
-3. Search for **Ninja Woodfire**
-4. The device will be discovered automatically via Bluetooth, or enter the address manually
+1. Power on the grill and keep it nearby.
+2. **Settings → Devices & Services → Add Integration**, search for **Ninja Woodfire**.
+3. The grill is usually discovered over Bluetooth automatically. If not, enter its address manually.
 
----
+## The Connection Enabled switch
+
+Only one device can hold a BLE connection to the grill at a time, so Home Assistant and the Ninja mobile app can't both be connected. The **Connection Enabled** switch decides who gets it:
+
+- **On** (default) — HA stays connected and reconnects automatically.
+- **Off** — HA disconnects and stops trying, leaving the grill free for the Ninja app.
+
+The choice survives a restart, so if you leave it off, HA won't grab the connection on the next boot.
 
 ## Entities
 
 ### Sensors
 
-| Entity | Description | Status |
-|--------|-------------|--------|
-| `sensor.ninja_woodfire_state` | Device state (Idle / Preheating / Cooking / Complete / Error) | 🔄 In progress |
-| `sensor.ninja_woodfire_cook_mode` | Cook mode (Grill / Smoke / AirCrisp / Roast / Bake / Broil / Dehydrate) | 🔄 In progress |
-| `sensor.ninja_woodfire_grill_temperature` | Current grill temperature (°C) | 🔄 In progress |
-| `sensor.ninja_woodfire_target_temperature` | Target temperature (°C) | 🔄 In progress |
-| `sensor.ninja_woodfire_time_remaining` | Time remaining (seconds) | 🔄 In progress |
-| `sensor.ninja_woodfire_cook_duration` | Total cook duration (seconds) | 🔄 In progress |
-| `sensor.ninja_woodfire_cook_progress` | Cook progress (%) | 🔄 In progress |
-| `sensor.ninja_woodfire_preheat_progress` | Preheat progress (%) | 🔄 In progress |
-| `sensor.ninja_woodfire_probe_1_temperature` | Probe 1 temperature (°C) | 🔄 In progress |
-| `sensor.ninja_woodfire_probe_1_target` | Probe 1 target temperature (°C) | 🔄 In progress |
-| `sensor.ninja_woodfire_probe_2_temperature` | Probe 2 temperature (°C) | 🔄 In progress |
-| `sensor.ninja_woodfire_probe_2_target` | Probe 2 target temperature (°C) | 🔄 In progress |
+All of these are in place; the ones marked *pending* stay empty until state decryption is done.
 
-### Binary Sensors
+| Entity | Description | |
+|--------|-------------|--|
+| `sensor.ninja_woodfire_state` | Idle / Preheating / Cooking / Complete / Error | pending |
+| `sensor.ninja_woodfire_cook_mode` | Grill / Smoke / AirCrisp (Air Fry) / Roast / Bake / Broil / Dehydrate / MaxRoast / SlowCook | pending |
+| `sensor.ninja_woodfire_grill_temperature` | Current grill temperature (°C) | pending |
+| `sensor.ninja_woodfire_target_temperature` | Target temperature (°C) | pending |
+| `sensor.ninja_woodfire_time_remaining` | Time remaining (s) | pending |
+| `sensor.ninja_woodfire_cook_duration` | Total cook duration (s) | pending |
+| `sensor.ninja_woodfire_cook_progress` | Cook progress (%) | pending |
+| `sensor.ninja_woodfire_preheat_progress` | Preheat progress (%) | pending |
+| `sensor.ninja_woodfire_probe_1_temperature` | Probe 1 temperature (°C) | pending |
+| `sensor.ninja_woodfire_probe_1_target` | Probe 1 target (°C) | pending |
+| `sensor.ninja_woodfire_probe_2_temperature` | Probe 2 temperature (°C) | pending |
+| `sensor.ninja_woodfire_probe_2_target` | Probe 2 target (°C) | pending |
 
-| Entity | Description | Status |
-|--------|-------------|--------|
-| `binary_sensor.ninja_woodfire_connected` | BLE connection status | ✅ Working |
-| `binary_sensor.ninja_woodfire_cooking` | Currently cooking | 🔄 In progress |
-| `binary_sensor.ninja_woodfire_preheating` | Currently preheating | 🔄 In progress |
-| `binary_sensor.ninja_woodfire_lid` | Lid open/closed | ✅ Working |
-| `binary_sensor.ninja_woodfire_woodfire_active` | Woodfire/smoke active | 🔄 In progress |
-| `binary_sensor.ninja_woodfire_probe_1_connected` | Probe 1 plugged in | 🔄 In progress |
-| `binary_sensor.ninja_woodfire_probe_2_connected` | Probe 2 plugged in | 🔄 In progress |
+### Binary sensors
 
----
+| Entity | Description | |
+|--------|-------------|--|
+| `binary_sensor.ninja_woodfire_connected` | Live BLE link | working |
+| `binary_sensor.ninja_woodfire_lid` | Lid open/closed | working |
+| `binary_sensor.ninja_woodfire_cooking` | Currently cooking | pending |
+| `binary_sensor.ninja_woodfire_preheating` | Currently preheating | pending |
+| `binary_sensor.ninja_woodfire_woodfire_active` | Woodfire/smoke active | pending |
+| `binary_sensor.ninja_woodfire_probe_1_connected` | Probe 1 plugged in | pending |
+| `binary_sensor.ninja_woodfire_probe_2_connected` | Probe 2 plugged in | pending |
 
-## Architecture
+### Switch
 
-The integration is fully local — it communicates directly with the device over BLE. Device state is parsed and exposed as Home Assistant entities without any cloud connectivity.
+| Entity | Description |
+|--------|-------------|
+| `switch.ninja_woodfire_connection_enabled` | Hold or release the BLE connection (see above) |
 
----
+### Planned controls
+
+Once write support lands, the plan is to expose the grill's controls as well:
+
+- **Cook function** — Grill / Smoke / AirCrisp (Air Fry) / Roast / Bake / Broil / Dehydrate / MaxRoast / SlowCook.
+- **Cook type** — probe (thermometer) vs. time-based cooking.
+- **Target temperature** and **cook time**.
+- **Wood flavor** selection.
+
+These depend on the protocol work above and aren't available yet. See [ROADMAP.md](ROADMAP.md).
 
 ## Development
 
-### Repository Layout
+### Layout
 
 ```
 custom_components/ninja_woodfire/   HA integration
   __init__.py                       Setup and teardown
   manifest.json                     Integration manifest
-  config_flow.py                    Config flow (auto-discovery + manual)
+  config_flow.py                    Config flow (discovery + manual)
   coordinator.py                    Data update coordinator
   bluetooth.py                      BLE client
   protocol.py                       Protocol parser
   grillcore_native.py               Native library wrapper (future use)
-  sensor.py                         Sensor entities
-  binary_sensor.py                  Binary sensor entities
-  diagnostics.py                    HA diagnostics support
-  lib/                              Native library (not included, see below)
-docs/                               Project documentation
-spec/                               Protocol specifications
-  gatt.md                           GATT services and characteristics
-tools/                              BLE discovery and analysis tools
-  ble_scan.py                       BLE advertisement scanner
-  ble_gatt_dump.py                  GATT service dumper + notification listener
-  parse_btsnoop_att.py              Android HCI log parser
+  sensor.py / binary_sensor.py / switch.py   Entities
+  diagnostics.py                    HA diagnostics
+docs/                               Project notes
+spec/gatt.md                        GATT services and characteristics
+tools/                              BLE discovery and analysis scripts
 captures/                           Local BLE captures (gitignored)
-tests/                              Automated tests
+tests/                              Tests
 ```
 
-### Protocol Research
+`ARCHITECTURE.md` covers how the pieces fit together; `spec/gatt.md` has the protocol notes.
 
-Current status of reverse-engineering:
+### Protocol status
 
-| Area | Status |
-|------|--------|
-| GATT services & characteristics | ✅ Complete |
-| BLE connection flow | ✅ Documented |
-| Encryption mechanism | 🔄 In progress (static .so analysis) |
-| State payload parsing | 🔄 In progress |
-| Command payload format | ⏳ Pending encryption |
+The GATT layout and the BLE connection flow are documented. What's left is full read/write support for the grill's protected state and commands, which is an ongoing effort. The internals aren't documented publicly here — if you're working on this and want to compare notes, open an issue.
 
-See [`spec/gatt.md`](spec/gatt.md) for full protocol notes.
+### Tests
 
----
-
-## Test Environment
-
-Developed and tested on:
-
-| Component | Version |
-|-----------|---------|
-| Home Assistant Core | 2026.6.4 |
-| Home Assistant OS | 18.0 |
-| Supervisor | 2026.06.2 |
-| Test device | Ninja Woodfire Pro Connect XL |
-
----
+```bash
+pytest tests/ -v
+```
 
 ## Contributing
 
-Contributions welcome, especially:
-- BLE captures with different device states (cooking, preheating, different modes)
-- Protocol analysis and documentation
-- Testing on different Ninja Woodfire models
+Help is especially useful with:
 
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting PRs.
+- BLE captures in different states (cooking, preheating, various modes).
+- Protocol analysis and documentation.
+- Testing on other Ninja Woodfire models.
 
----
+See [CONTRIBUTING.md](CONTRIBUTING.md) first. Changes are tracked in [CHANGELOG.md](CHANGELOG.md).
 
 ## Disclaimer
 
-This is an unofficial, independent project. Not affiliated with or endorsed by SharkNinja. "Ninja", "Woodfire" and related product names are trademarks of SharkNinja Operating LLC.
+Unofficial and independent — not affiliated with or endorsed by SharkNinja. "Ninja" and "Woodfire" are trademarks of SharkNinja Operating LLC.
 
 ## License
 
 MIT — see [LICENSE](LICENSE).
+</content>
+</invoke>
