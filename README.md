@@ -3,7 +3,7 @@
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-<img src="assets/icon-512.png" alt="Ninja Woodfire icon" width="88" align="left" />
+<img src="assets/icon-512.png" alt="Ninja Woodfire icon" width="88" align="left" hspace="16" />
 
 A local Home Assistant integration for the Ninja Woodfire Pro outdoor grill. It talks to the grill directly over Bluetooth Low Energy, so there's no cloud and no Ninja account involved.
 
