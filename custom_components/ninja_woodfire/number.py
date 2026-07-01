@@ -6,7 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from homeassistant.components.number import NumberEntity, NumberEntityDescription
-from homeassistant.const import UnitOfTemperature, UnitOfTime
+from homeassistant.const import UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -51,18 +51,6 @@ NUMBER_DESCRIPTIONS: tuple[NinjaNumberDescription, ...] = (
         current_fn=lambda s: s.probe2.desired_temp_c or None,
         command_fn=commands.set_probe2_target_temp,
         requires_cook_type="Probe",
-    ),
-    NinjaNumberDescription(
-        key="cook_time",
-        name="Cook Time",
-        icon="mdi:timer",
-        native_unit_of_measurement=UnitOfTime.MINUTES,
-        native_min_value=commands.MIN_COOK_MINUTES,
-        native_max_value=commands.MAX_COOK_MINUTES,
-        native_step=1,
-        current_fn=lambda s: s.oven_time_set_s // 60,
-        command_fn=commands.set_cook_time,
-        requires_cook_type="Timed",
     ),
 )
 

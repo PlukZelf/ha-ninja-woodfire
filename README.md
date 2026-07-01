@@ -113,7 +113,7 @@ transmitting) until the protocol is confirmed. See [ROADMAP.md](ROADMAP.md).
 | `select.ninja_woodfire_cook_type` | select | Probe (thermometer) vs. time-based |
 | `number.ninja_woodfire_probe_1_target_temperature` | number | Probe 1 target (°C) — only for Probe cooks |
 | `number.ninja_woodfire_probe_2_target_temperature` | number | Probe 2 target (°C) — only for Probe cooks |
-| `number.ninja_woodfire_cook_time` | number | Cook time (minutes) — only for Timed cooks |
+| `time.ninja_woodfire_cook_time` | time | Cook time (HH:MM) — only for Timed cooks |
 | `switch.ninja_woodfire_wood_flavor` | switch | Wood flavor / smoke on/off (default off) |
 | `button.ninja_woodfire_start_cook` | button | Start the cook |
 | `button.ninja_woodfire_stop_cook` | button | Stop the cook |
@@ -133,7 +133,7 @@ entities:
   - entity: select.ninja_woodfire_cook_function
   - entity: select.ninja_woodfire_cook_type
   - entity: switch.ninja_woodfire_wood_flavor
-  - entity: number.ninja_woodfire_cook_time
+  - entity: time.ninja_woodfire_cook_time
   - entity: number.ninja_woodfire_probe_1_target_temperature
   - entity: number.ninja_woodfire_probe_2_target_temperature
   - type: divider
