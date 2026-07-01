@@ -100,16 +100,46 @@ All of these are in place; the ones marked *pending* stay empty until state decr
 |--------|-------------|
 | `switch.ninja_woodfire_connection_enabled` | Hold or release the BLE connection (see above) |
 
-### Planned controls
+### Controls
 
-Once write support lands, the plan is to expose the grill's controls as well:
+The control entities exist in Home Assistant already, but they don't send
+anything to the grill yet: the write payload format isn't reverse-engineered,
+so every command is deliberately blocked (it logs a warning instead of
+transmitting) until the protocol is confirmed. See [ROADMAP.md](ROADMAP.md).
 
-- **Cook function** — Grill / Smoke / AirCrisp (Air Fry) / Roast / Bake / Broil / Dehydrate / MaxRoast / SlowCook.
-- **Cook type** — probe (thermometer) vs. time-based cooking.
-- **Target temperature** and **cook time**.
-- **Wood flavor** selection.
+| Entity | Type | Description |
+|--------|------|-------------|
+| `select.ninja_woodfire_cook_function` | select | Grill / Smoke / AirCrisp (Air Fry) / Roast / Bake / Broil / Dehydrate / MaxRoast / SlowCook |
+| `select.ninja_woodfire_cook_type` | select | Probe (thermometer) vs. time-based |
+| `select.ninja_woodfire_wood_flavor` | select | Wood/pellet flavor |
+| `number.ninja_woodfire_target_temperature` | number | Target temperature (°C) |
+| `number.ninja_woodfire_cook_time` | number | Cook time (minutes) |
+| `button.ninja_woodfire_start_cook` | button | Start the cook |
+| `button.ninja_woodfire_stop_cook` | button | Stop the cook |
 
-These depend on the protocol work above and aren't available yet. See [ROADMAP.md](ROADMAP.md).
+## Dashboard card
+
+Home Assistant sorts entities on the device page alphabetically, so to lay the
+controls out in a sensible order use an `entities` card:
+
+```yaml
+type: entities
+title: Ninja Woodfire
+entities:
+  - entity: sensor.ninja_woodfire_state
+  - entity: binary_sensor.ninja_woodfire_connected
+  - type: divider
+  - entity: select.ninja_woodfire_cook_function
+  - entity: select.ninja_woodfire_cook_type
+  - entity: select.ninja_woodfire_wood_flavor
+  - entity: number.ninja_woodfire_target_temperature
+  - entity: number.ninja_woodfire_cook_time
+  - type: divider
+  - entity: button.ninja_woodfire_start_cook
+  - entity: button.ninja_woodfire_stop_cook
+  - type: divider
+  - entity: switch.ninja_woodfire_connection_enabled
+```
 
 ## Development
 
