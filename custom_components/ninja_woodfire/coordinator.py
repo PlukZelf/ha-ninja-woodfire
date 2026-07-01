@@ -5,12 +5,14 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from collections.abc import Callable
 from datetime import timedelta
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .bluetooth import NinjaWoodfireClient
+from .commands import CommandNotSupported
 from .const import DOMAIN, NINJA_INDICATE_UUID, NINJA_NOTIFY_UUID, UPDATE_INTERVAL
 from .protocol import NinjaState, apply_indicate, apply_notify
 
@@ -205,6 +207,23 @@ class NinjaWoodfireCoordinator(DataUpdateCoordinator[NinjaState]):
         self._last_data_monotonic = time.monotonic()
         self._state.connected = self.is_connection_live
         self.async_set_updated_data(self._state)
+
+    async def async_send_command(self, builder: Callable[[], bytes]) -> bool:
+        """Build a command payload and send it to the device.
+
+        ``builder`` is one of the functions in ``commands.py``. Until the
+        command format is confirmed those builders raise CommandNotSupported;
+        we catch it here so control entities can be present in the UI without
+        ever transmitting unverified bytes to a real appliance.
+        """
+        try:
+            payload = builder()
+        except CommandNotSupported as err:
+            _LOGGER.warning(
+                "Control command not sent to %s — %s", self._address, err
+            )
+            return False
+        return await self._client.send_command(payload)
 
     async def _async_update_data(self) -> NinjaState:
         """Heartbeat — check connection health."""
