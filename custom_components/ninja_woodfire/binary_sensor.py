@@ -106,7 +106,18 @@ class NinjaWoodfireBinarySensor(CoordinatorEntity[NinjaWoodfireCoordinator], Bin
         }
 
     @property
+    def available(self) -> bool:
+        # The connectivity sensor must always be readable so it can report
+        # "disconnected" — otherwise it would show "unavailable" the moment
+        # the link drops, hiding the very state it exists to convey.
+        if self.entity_description.key == "connected":
+            return True
+        return super().available
+
+    @property
     def is_on(self) -> bool | None:
+        if self.entity_description.key == "connected":
+            return self.coordinator.is_connection_live
         if self.coordinator.data is None:
             return None
         return self.entity_description.value_fn(self.coordinator.data)
