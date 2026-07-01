@@ -41,7 +41,11 @@ SELECT_DESCRIPTIONS: tuple[NinjaSelectDescription, ...] = (
         name="Cook Type",
         icon="mdi:thermometer",
         options=list(commands.COOK_TYPES),
-        current_fn=lambda s: s.cook_type if s.cook_type in commands.COOK_TYPES else None,
+        current_fn=lambda s: (
+            s.cook_type
+            if s.cook_type in commands.COOK_TYPES
+            else commands.DEFAULT_COOK_TYPE
+        ),
         command_fn=commands.set_cook_type,
     ),
 )
