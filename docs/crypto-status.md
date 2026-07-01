@@ -139,6 +139,58 @@ like `GATT_CHAR_DUID`) does not match what this grill actually exposes
 functions) — SharkNinja built its own local BLE transport+crypto on top of
 Ayla's cloud backend, not Ayla's mobile BLE SDK.
 
+## Pure-Python port attempt (2026-07-01) — harder than expected, PAUSED
+
+Tried to replace the emulator-driven `FUN_00230460` call with a pure-Python
+port, to remove the proprietary-binary dependency for end users. Black-box
+probing (flipping single input bytes and observing which output bytes
+change) confirmed genuine block-cipher-like full diffusion — consistent
+with real AES — but a first hypothesis ("`output[0:16]` is plain
+AES-256-ECB with the static 32-byte key found in `__ptr_02`") **failed**:
+neither encrypt nor decrypt with that key matched the emulator's output.
+
+Re-reading the decompile (`tools/artifacts/ghidra_decompiled_rebuild.txt`,
+`FUN_002309ac`) shows why: the AES-256 core (`FUN_00231934`) is NOT called
+with the static `__ptr_02` constant as its key argument. It's called with a
+**whitened copy of `__ptr_00`** (a different 32-byte constant, first
+XOR/add-mixed with the raw input bytes) as the key-schedule input, and a
+similarly whitened copy of `__ptr_01` as the initial block/state. The static
+`__ptr_02`/`__ptr_03` constants are only used in a **second**, separate call
+to `FUN_00231934` per row, as additional mixing material — not as the
+primary key.
+
+**Conclusion: the key material itself is derived from the input, not just
+static.** This is a materially harder porting job than "AES with a fixed
+key" — a correct pure-Python port needs the FULL whitening/checksum chain
+traced faithfully (checksum formula over cycled input bytes, the
+per-position `cVar6` additive term, exactly which buffer feeds which
+`FUN_00231934` argument slot), not a shortcut through a standard crypto
+library.
+
+**Decision (user call, 2026-07-01): defer this.** For now, `custom_components/`
+work can proceed using `tools/grillcore_emu.py` as an interim, dev-only
+decode path (not shippable to end users — see below), while this document
+tracks the open work needed to finish a real pure-Python port:
+
+- [ ] Fully trace `FUN_002309ac`'s checksum loop (~line 653-665): confirm it
+  sums `input[i mod 6] + input[i mod 6] * key32[i]` for `i in 0..31`
+  (as read so far) into a single `uVar12`, and how `uVar12` seeds the
+  per-row additive constant `cVar6` used in the whitening loop.
+- [ ] Fully trace which of `__ptr_00`/`__ptr_01`/`__ptr_02`/`__ptr_03`
+  (or their whitened copies) map to `FUN_00231934`'s `param_2` (key,
+  passed through `FUN_00214238` for schedule expansion), `param_3`
+  (block/state), and `param_4` (per-call tweak) for BOTH calls per row.
+  Recorded so far: call 1 uses whitened-`__ptr_00`/whitened-`__ptr_01`/raw-
+  `__ptr_02`; call 2 uses the same whitened buffers again with raw-`__ptr_03`.
+- [ ] Once the argument mapping is nailed down, either hand-port the exact
+  fixslice round function (`FUN_00213f44` et al., dense bit-permutation
+  code) or confirm it's swappable for a standard AES-256 library call once
+  fed the CORRECT (derived) key/block — re-run the black-box byte-flip test
+  against that corrected hypothesis.
+- [ ] Repeat for the 23-byte half (may reuse the same `FUN_002309ac`/
+  `FUN_00231934` structure, needs confirming — the length-16-vs-different
+  branch inside `FUN_00230460` suggests some handling may differ).
+
 ## Distribution: emulator is a dev tool only, NOT shipped
 
 `tools/grillcore_emu.py` is a Unicorn AArch64 emulator that loads the real
