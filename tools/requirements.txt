@@ -1,1 +1,8 @@
 bleak>=0.22,<1.0
+
+# Reverse-engineering tooling only (not used by the shipped integration):
+capstone>=5.0        # static disassembly (elf_analyze.py, disasm_func.py)
+pyelftools>=0.29      # ELF parsing (elf_analyze.py, elf_symbols.py, grillcore_emu.py)
+unicorn>=2.0          # ARM64 emulation oracle (grillcore_emu.py) — verifies the
+                       # pure-Python crypto port against the real .so; never
+                       # shipped to end users (see docs/crypto-status.md)

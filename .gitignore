@@ -36,3 +36,9 @@ captures/*
 # Home Assistant local runtime
 .storage/
 home-assistant.log*
+
+# Proprietary/extracted binaries and personal RE working notes — never commit
+# (see CLAUDE.md "Nooit committen"): the .so, pulled APKs, and raw Ghidra
+# decompile dumps of Ninja's proprietary code all live under tools/artifacts/.
+tools/artifacts/
+REBOOT.md
