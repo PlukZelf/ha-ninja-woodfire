@@ -117,7 +117,7 @@ class NinjaWoodfireBinarySensor(CoordinatorEntity[NinjaWoodfireCoordinator], Bin
     @property
     def is_on(self) -> bool | None:
         if self.entity_description.key == "connected":
-            return self.coordinator.is_connection_live
+            return self.coordinator.is_recently_seen
         if self.coordinator.data is None:
             return None
         return self.entity_description.value_fn(self.coordinator.data)

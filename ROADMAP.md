@@ -30,9 +30,10 @@ key, unsolved, needed only for sending commands).
       total cook time, oven temperature, target temperature, probe1
       temperature, probe plugged-in/target-set flags, probe target
       temperature.
-- [ ] Port the advertisement crypto to pure Python (currently depends on an
-      emulator + the proprietary `.so`, dev-only — see "Pure-Python port
-      attempt" in docs/crypto-status.md for exactly what's blocking this).
+- [x] Port the advertisement crypto to pure Python (`tools/advert_crypto_port.py`,
+      static AES-256-CBC with fixed key/IV, no emulator/`.so` needed at
+      runtime — verified byte-for-byte against 150+ vectors, see
+      "Pure-Python port — DONE" in docs/crypto-status.md).
 - [ ] Finish mapping the remaining fields (preheat progress, the `extra_byte`
       after the MAC, the rolling final field, probe2 once tested with a
       second physical probe).
