@@ -47,22 +47,30 @@ def extract_halves(service_info: BluetoothServiceInfoBleak) -> tuple[bytes, byte
     """Recover the (20-byte, 23-byte) encrypted advert halves, or None."""
     # Primary: parse the full raw advertisement if available.
     raw = getattr(service_info, "raw", None)
+    _LOGGER.warning("DEBUG: raw=%s (type=%s)", raw.hex() if raw else None, type(raw).__name__ if raw else None)
     if raw:
         payloads = list(_iter_manufacturer_payloads(bytes(raw)))
         by_len = {len(p): p for p in payloads}
+        _LOGGER.warning("DEBUG: found payloads with lengths: %s", list(by_len.keys()))
         if HALF1_LEN in by_len and HALF2_LEN in by_len:
+            _LOGGER.warning("DEBUG: both halves found in raw, returning")
             return by_len[HALF1_LEN], by_len[HALF2_LEN]
+        _LOGGER.warning("DEBUG: raw parsed but missing one or both halves")
 
     # Fallback: manufacturer_data dict (may have dropped a half).
     md = service_info.manufacturer_data or {}
+    _LOGGER.warning("DEBUG: manufacturer_data keys=%s", list(md.keys()))
     value = md.get(COMPANY_ID)
+    _LOGGER.warning("DEBUG: COMPANY_ID 0x%04x value=%s (len=%d)", COMPANY_ID, value.hex() if value else None, len(value) if value else 0)
     if value is not None:
         if len(value) == HALF1_LEN + HALF2_LEN:  # 43: concatenated
+            _LOGGER.warning("DEBUG: found 43-byte concatenated halves in manufacturer_data")
             return bytes(value[:HALF1_LEN]), bytes(value[HALF1_LEN:HALF1_LEN + HALF2_LEN])
-        _LOGGER.debug(
-            "Only one advert half available (len=%d) — waiting for a full packet",
+        _LOGGER.warning(
+            "DEBUG: Only one advert half available (len=%d) — waiting for a full packet",
             len(value),
         )
+    _LOGGER.warning("DEBUG: extract_halves returning None")
     return None
 
 
