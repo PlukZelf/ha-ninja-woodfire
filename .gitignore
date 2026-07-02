@@ -41,4 +41,5 @@ home-assistant.log*
 # (see CLAUDE.md "Nooit committen"): the .so, pulled APKs, and raw Ghidra
 # decompile dumps of Ninja's proprietary code all live under tools/artifacts/.
 tools/artifacts/
+tools/lib/*.so
 REBOOT.md

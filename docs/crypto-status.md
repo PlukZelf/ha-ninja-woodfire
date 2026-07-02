@@ -1,6 +1,6 @@
 # BLE Crypto — Reverse Engineering Status
 
-_Last updated: 2026-07-01_
+_Last updated: 2026-07-02_
 
 This document records what is known about the encryption used on the
 Ninja Woodfire Pro BLE link (advertisements and GATT), based on static
@@ -216,57 +216,114 @@ like `GATT_CHAR_DUID`) does not match what this grill actually exposes
 functions) — SharkNinja built its own local BLE transport+crypto on top of
 Ayla's cloud backend, not Ayla's mobile BLE SDK.
 
-## Pure-Python port attempt (2026-07-01) — harder than expected, PAUSED
+## Pure-Python port — DONE (2026-07-02)
 
-Tried to replace the emulator-driven `FUN_00230460` call with a pure-Python
-port, to remove the proprietary-binary dependency for end users. Black-box
-probing (flipping single input bytes and observing which output bytes
-change) confirmed genuine block-cipher-like full diffusion — consistent
-with real AES — but a first hypothesis ("`output[0:16]` is plain
-AES-256-ECB with the static 32-byte key found in `__ptr_02`") **failed**:
-neither encrypt nor decrypt with that key matched the emulator's output.
+Full pure-Python port of the advert-half decryption is complete and
+verified byte-for-byte against the real native code. Implementation:
+`tools/advert_crypto_port.py` (`decode_advert_half(raw: bytes) -> bytes`,
+uses only `pycryptodome`, no `.so`/emulator needed at runtime).
 
-Re-reading the decompile (`tools/artifacts/ghidra_decompiled_rebuild.txt`,
-`FUN_002309ac`) shows why: the AES-256 core (`FUN_00231934`) is NOT called
-with the static `__ptr_02` constant as its key argument. It's called with a
-**whitened copy of `__ptr_00`** (a different 32-byte constant, first
-XOR/add-mixed with the raw input bytes) as the key-schedule input, and a
-similarly whitened copy of `__ptr_01` as the initial block/state. The static
-`__ptr_02`/`__ptr_03` constants are only used in a **second**, separate call
-to `FUN_00231934` per row, as additional mixing material — not as the
-primary key.
+### What the earlier (2026-07-01) attempt got wrong
 
-**Conclusion: the key material itself is derived from the input, not just
-static.** This is a materially harder porting job than "AES with a fixed
-key" — a correct pure-Python port needs the FULL whitening/checksum chain
-traced faithfully (checksum formula over cycled input bytes, the
-per-position `cVar6` additive term, exactly which buffer feeds which
-`FUN_00231934` argument slot), not a shortcut through a standard crypto
-library.
+The previous pass correctly identified that `FUN_00230460` calls into
+`FUN_002309ac`, which builds a table of 6 "rows" (each an AES-256
+key + 128-bit IV pair) via a checksum + whitening pass over the raw
+input, feeding a **fixslice AES-256 core** (`FUN_00231934`, confirmed
+by matching `FUN_00213f44`'s round function and `FUN_00214724`'s
+bit-permutation structure against RustCrypto's `aes` crate
+`fixslice64.rs`). That part of the trace was correct. What it got
+wrong: it assumed this whitened/derived row material was *itself*
+used as the key for decrypting the actual advert bytes. It is not —
+those 6 rows only exist to prepare **encrypted constants
+(`__ptr_02`/`__ptr_03`) that get thrown away**; row 0 of that table
+(and, separately, row 5) are just the literal static constants
+`__ptr_00`/`__ptr_01`, unmodified. The advert bytes themselves are
+decrypted using **row 0 directly** (i.e. the static constants), via a
+*different* function, `FUN_002315a0` — not `FUN_00231934` at all, and
+not any input-derived key.
 
-**Decision (user call, 2026-07-01): defer this.** For now, `custom_components/`
-work can proceed using `tools/grillcore_emu.py` as an interim, dev-only
-decode path (not shippable to end users — see below), while this document
-tracks the open work needed to finish a real pure-Python port:
+This was discovered by instrumenting the Unicorn emulator with code
+hooks at `FUN_00231934`'s and `FUN_002315a0`'s entry points and
+dumping their actual x0-x3 argument slices for a real
+`_decode_advert_half()` call: `FUN_00231934` is called only from
+inside `FUN_002309ac` (10 times, always with `__ptr_02`/`__ptr_03` as
+the "plaintext" argument — dead-end busywork for this codepath), while
+`FUN_002315a0` is called exactly twice per advert half, always with
+the *same static* 32-byte key and 16-byte IV.
 
-- [ ] Fully trace `FUN_002309ac`'s checksum loop (~line 653-665): confirm it
-  sums `input[i mod 6] + input[i mod 6] * key32[i]` for `i in 0..31`
-  (as read so far) into a single `uVar12`, and how `uVar12` seeds the
-  per-row additive constant `cVar6` used in the whitening loop.
-- [ ] Fully trace which of `__ptr_00`/`__ptr_01`/`__ptr_02`/`__ptr_03`
-  (or their whitened copies) map to `FUN_00231934`'s `param_2` (key,
-  passed through `FUN_00214238` for schedule expansion), `param_3`
-  (block/state), and `param_4` (per-call tweak) for BOTH calls per row.
-  Recorded so far: call 1 uses whitened-`__ptr_00`/whitened-`__ptr_01`/raw-
-  `__ptr_02`; call 2 uses the same whitened buffers again with raw-`__ptr_03`.
-- [ ] Once the argument mapping is nailed down, either hand-port the exact
-  fixslice round function (`FUN_00213f44` et al., dense bit-permutation
-  code) or confirm it's swappable for a standard AES-256 library call once
-  fed the CORRECT (derived) key/block — re-run the black-box byte-flip test
-  against that corrected hypothesis.
-- [ ] Repeat for the 23-byte half (may reuse the same `FUN_002309ac`/
-  `FUN_00231934` structure, needs confirming — the length-16-vs-different
-  branch inside `FUN_00230460` suggests some handling may differ).
+### The verified algorithm
+
+Static constants (32-byte AES-256 key, 16-byte IV), recovered from the
+row-0 literal assignments in `FUN_002309ac`
+(`tools/artifacts/ghidra_decompiled_rebuild.txt` lines ~681-684 and
+697-698) and cross-checked byte-for-byte via direct emulator calls
+into `FUN_002315a0`:
+
+```
+KEY_CONST = eb08bb107cb293618536fd3dee1d2f6cdbc3d888bfac8f53839704220f1f197e   # 32 bytes
+IV_CONST  = 539ca281078468fd901e591ae1be425b                                   # 16 bytes
+```
+
+(Note: an earlier draft of this doc/`tools/advert_crypto_port.py` had
+both constants **truncated by exactly one trailing byte** — a
+copy-paste artifact — which is why the "block 0" hypothesis back then
+only matched the first 4 output bytes of each vector: a 31-byte key
+still produces *some* AES output, just wrong beyond the point the
+missing key byte starts to matter in the key schedule. Always verify
+these by re-reading the qword literals from the decompile directly,
+not by trusting a previously-recorded hex string.)
+
+For a raw advert half `raw` of length `n` (17-31 bytes, i.e. one
+16-byte block + a 1-15 byte tail):
+
+1. `out0 = AES-256-CBC-Decrypt(KEY_CONST, IV_CONST, raw[0:16])` — a
+   single 16-byte block, so equivalent to
+   `AES-256-ECB-Decrypt(KEY_CONST, raw[0:16]) XOR IV_CONST`.
+2. `tail_len = n - 16` (1-15).
+3. Build a second 16-byte block: `window = out0[tail_len:16] +
+   raw[16:n]` — the last `16 - tail_len` bytes of `out0`, followed by
+   all `tail_len` raw tail bytes.
+4. `out1 = AES-256-CBC-Decrypt(KEY_CONST, IV_CONST, window)` — same
+   fixed key/IV, a **fresh** single-block decrypt (not chained from
+   step 1's output as an IV — both calls independently use the same
+   static `IV_CONST`).
+5. Final output = `out0[0:tail_len] + out1` — exactly
+   `tail_len + 16 == n` bytes.
+
+Both AES calls share the identical static key/IV — there is no
+per-message or input-derived key material anywhere in this path. The
+two-call "telescoping" structure exists purely because the underlying
+cipher only natively processes 16-byte blocks, but the real
+manufacturer-data payload lengths (20 and 23 bytes observed in
+practice) aren't block-aligned; the tail gets folded into a second
+block built from the otherwise-unused tail of the first block's
+decrypted output.
+
+### Verification
+
+- All 7 hand-recorded test vectors (4× 20-byte, 3× 23-byte) match
+  exactly.
+- An additional 150 randomly generated vectors, covering every valid
+  length from 17 to 31 bytes (10 trials each), all match exactly
+  against the real native implementation (verified live via
+  `tools/grillcore_emu.py` calling `FUN_00230460` directly as the
+  oracle).
+- `tools/advert_crypto_port.py`'s embedded `__main__` self-test
+  reproduces the 7 core vectors with **no dependency on the `.so` or
+  the emulator** — safe to ship to end users as the production decode
+  path.
+
+### Still open (minor, non-blocking)
+
+- The exact bit-level reason `FUN_00231934`'s row-building machinery
+  exists at all (it's computed but never consulted for anything that
+  affects the final advert output) isn't understood — possibly dead
+  code left over from a more general internal crypto abstraction
+  shared with the (still-unsolved) GATT session-key path, or possibly
+  it *is* consulted somewhere for a code path not exercised by
+  advert decoding specifically (e.g. GATT). Not required to finish
+  the advert port; noted here only for completeness in case it's ever
+  relevant to the separate GATT session-key investigation.
 
 ## Distribution: emulator is a dev tool only, NOT shipped
 
@@ -277,12 +334,13 @@ reverse-engineering work quickly and correctly, since it runs the *actual*
 Rust/AES code instead of a hand-ported reimplementation.
 
 **However, per `CLAUDE.md`, `libgrillcore_android.so` may never be
-committed and cannot be redistributed to end users.** The emulator is
-therefore a **reverse-engineering oracle only**: use it to verify a
-from-scratch pure-Python port of the advert crypto (`FUN_002309ac`'s
-whitening/checksum step + the fixslice AES-256 core) byte-for-byte, then
-ship only the pure-Python version in `custom_components/ninja_woodfire/` —
-never the emulator or the `.so` itself.
+committed and cannot be redistributed to end users.** The emulator was
+used as a **reverse-engineering oracle only**, to verify the
+from-scratch pure-Python port of the advert crypto
+(`tools/advert_crypto_port.py`, see above — now DONE and verified)
+byte-for-byte; only that pure-Python module should be wired into
+`custom_components/ninja_woodfire/` — never the emulator or the `.so`
+itself.
 
 ## Tooling
 

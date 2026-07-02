@@ -1,194 +1,112 @@
-"""Bluetooth client for the Ninja Woodfire integration."""
+"""Passive BLE advertisement listener for the Ninja Woodfire integration."""
 
 from __future__ import annotations
 
 import logging
 from collections.abc import Callable
 
-from bleak import BleakClient
-from bleak.backends.characteristic import BleakGATTCharacteristic
-from bleak.exc import BleakError
-from bleak_retry_connector import establish_connection
 from homeassistant.components import bluetooth
-from homeassistant.core import HomeAssistant
-
-from .const import (
-    NINJA_INDICATE_UUID,
-    NINJA_NOTIFY_UUID,
-    NINJA_SERVICE_UUID,
-    NINJA_WRITE_UUID,
+from homeassistant.components.bluetooth import (
+    BluetoothCallbackMatcher,
+    BluetoothChange,
+    BluetoothServiceInfoBleak,
 )
-from .grillcore_native import get_native
+from homeassistant.core import HomeAssistant, callback
 
 _LOGGER = logging.getLogger(__name__)
 
-NotifyCallback = Callable[[str, bytes], None]
-DisconnectCallback = Callable[[], None]
+# The grill's two manufacturer-data AD structures share this company id.
+COMPANY_ID = 0x0C4F
+HALF1_LEN = 20
+HALF2_LEN = 23
 
-REQUIRED_CHARACTERISTICS = {
-    NINJA_WRITE_UUID,
-    NINJA_NOTIFY_UUID,
-    NINJA_INDICATE_UUID,
-}
+# Callback the coordinator supplies: receives the two raw encrypted halves.
+HalvesCallback = Callable[[bytes, bytes], None]
 
 
-class NinjaWoodfireClient:
-    """Manages the BLE connection to a Ninja Woodfire device."""
+def _iter_manufacturer_payloads(raw: bytes):
+    """Yield manufacturer-specific-data payloads (bytes AFTER company id)
+    for AD structures whose company id == COMPANY_ID, walking raw AD structs.
+    """
+    i = 0
+    n = len(raw)
+    while i < n:
+        length = raw[i]
+        if length == 0:
+            break
+        ad_type = raw[i + 1] if i + 1 < n else None
+        ad_data = raw[i + 2 : i + 1 + length]  # length counts type + data
+        if ad_type == 0xFF and len(ad_data) >= 2:
+            company = int.from_bytes(ad_data[:2], "little")
+            if company == COMPANY_ID:
+                yield ad_data[2:]
+        i += 1 + length
+
+
+def extract_halves(service_info: BluetoothServiceInfoBleak) -> tuple[bytes, bytes] | None:
+    """Recover the (20-byte, 23-byte) encrypted advert halves, or None."""
+    # Primary: parse the full raw advertisement if available.
+    raw = getattr(service_info, "raw", None)
+    if raw:
+        payloads = list(_iter_manufacturer_payloads(bytes(raw)))
+        by_len = {len(p): p for p in payloads}
+        if HALF1_LEN in by_len and HALF2_LEN in by_len:
+            return by_len[HALF1_LEN], by_len[HALF2_LEN]
+
+    # Fallback: manufacturer_data dict (may have dropped a half).
+    md = service_info.manufacturer_data or {}
+    value = md.get(COMPANY_ID)
+    if value is not None:
+        if len(value) == HALF1_LEN + HALF2_LEN:  # 43: concatenated
+            return bytes(value[:HALF1_LEN]), bytes(value[HALF1_LEN:HALF1_LEN + HALF2_LEN])
+        _LOGGER.debug(
+            "Only one advert half available (len=%d) — waiting for a full packet",
+            len(value),
+        )
+    return None
+
+
+class NinjaWoodfireScanner:
+    """Registers a passive advertisement callback for one device."""
 
     def __init__(
         self,
         hass: HomeAssistant,
         address: str,
-        on_data: NotifyCallback,
-        on_disconnect: DisconnectCallback | None = None,
-        *,
-        connection_timeout: float = 20.0,
+        on_halves: HalvesCallback,
     ) -> None:
         self._hass = hass
         self._address = address
-        self._on_data = on_data
-        self._on_disconnect = on_disconnect
-        self._connection_timeout = connection_timeout
-        self._client: BleakClient | None = None
-        self._native = get_native()
+        self._on_halves = on_halves
+        self._unregister: Callable[[], None] | None = None
 
-    @property
-    def is_connected(self) -> bool:
-        return self._client is not None and self._client.is_connected
-
-    async def start(self) -> None:
-        """Connect, validate GATT structure, and subscribe to notifications."""
-        _LOGGER.debug("Connecting to %s", self._address)
-        ble_device = bluetooth.async_ble_device_from_address(
-            self._hass, self._address, connectable=True
+    def start(self) -> None:
+        """Register the passive callback. Idempotent."""
+        if self._unregister is not None:
+            return
+        matcher = BluetoothCallbackMatcher(address=self._address)
+        self._unregister = bluetooth.async_register_callback(
+            self._hass,
+            self._handle_advert,
+            matcher,
+            bluetooth.BluetoothScanningMode.PASSIVE,
         )
-        if ble_device is None:
-            raise BleakError(
-                f"Device {self._address} not found — not currently in range"
-            )
+        _LOGGER.debug("Registered passive advert callback for %s", self._address)
 
-        client = await establish_connection(
-            BleakClient,
-            ble_device,
-            self._address,
-            disconnected_callback=self._handle_disconnect,
-            timeout=self._connection_timeout,
-        )
-        _LOGGER.debug("Connected to %s — validating GATT structure", self._address)
+    def stop(self) -> None:
+        """Unregister the callback."""
+        if self._unregister is not None:
+            self._unregister()
+            self._unregister = None
 
-        if not await self._validate_gatt(client):
-            _LOGGER.error(
-                "GATT validation failed for %s — disconnecting immediately",
-                self._address,
-            )
-            await client.disconnect()
-            raise ValueError(f"GATT structure mismatch for {self._address}")
-
-        self._client = client
-        await self._subscribe(client)
-        _LOGGER.debug("GATT validated and subscribed for %s", self._address)
-
-    async def stop(self) -> None:
-        """Disconnect gracefully."""
-        if self._client and self._client.is_connected:
-            try:
-                await self._client.disconnect()
-            except (BleakError, OSError) as err:
-                _LOGGER.debug("Error during disconnect: %s", err)
-        self._client = None
-
-    async def _validate_gatt(self, client: BleakClient) -> bool:
-        """Validate that expected service and characteristics are present.
-
-        Per the security spec: if the GATT structure does not match,
-        disconnect immediately, log the error, and process nothing.
-        """
-        services = client.services
-        service_uuids = {s.uuid for s in services}
-
-        if NINJA_SERVICE_UUID not in service_uuids:
-            _LOGGER.error(
-                "Ninja service UUID %s not found on %s — possible spoof or wrong device",
-                NINJA_SERVICE_UUID,
-                self._address,
-            )
-            return False
-
-        all_characteristic_uuids: set[str] = set()
-        for service in services:
-            for char in service.characteristics:
-                all_characteristic_uuids.add(char.uuid)
-
-        missing = REQUIRED_CHARACTERISTICS - all_characteristic_uuids
-        if missing:
-            _LOGGER.error(
-                "Missing required characteristics on %s: %s",
-                self._address,
-                missing,
-            )
-            return False
-
-        return True
-
-    async def _subscribe(self, client: BleakClient) -> None:
-        for uuid in (NINJA_NOTIFY_UUID, NINJA_INDICATE_UUID):
-            try:
-                await client.start_notify(uuid, self._notification_handler)
-                _LOGGER.debug("Subscribed to %s", uuid)
-            except (BleakError, OSError) as err:
-                _LOGGER.warning("Could not subscribe to %s: %s", uuid, err)
-
-    async def send_command(self, payload: bytes) -> bool:
-        """Encrypt and send a command payload to the write characteristic."""
-        if not self._client or not self._client.is_connected:
-            return False
-
-        if self._native.available():
-            encrypted = self._native.encrypt_data(payload, NINJA_WRITE_UUID)
-            if encrypted:
-                payload = encrypted
-            else:
-                _LOGGER.warning("Encryption failed — skipping command for safety")
-                return False
-        else:
-            _LOGGER.warning(
-                "Native library not available — cannot encrypt commands. "
-                "Copy libgrillcore_android.so to custom_components/ninja_woodfire/lib/"
-            )
-            return False
-
-        try:
-            await self._client.write_gatt_char(
-                NINJA_WRITE_UUID, bytearray(payload), response=True
-            )
-            return True
-        except (BleakError, OSError) as err:
-            _LOGGER.error("Failed to write command: %s", err)
-            return False
-
-    def _notification_handler(
+    @callback
+    def _handle_advert(
         self,
-        characteristic: BleakGATTCharacteristic,
-        data: bytearray,
+        service_info: BluetoothServiceInfoBleak,
+        change: BluetoothChange,
     ) -> None:
-        uuid = characteristic.uuid
-        raw = bytes(data)
-        _LOGGER.debug(
-            "Notification from %s: %d bytes",
-            uuid,
-            len(raw),
-        )
-
-        if self._native.available() and uuid == NINJA_INDICATE_UUID:
-            decrypted = self._native.decrypt_data(raw, uuid)
-            if decrypted:
-                self._on_data(uuid, decrypted)
-                return
-
-        self._on_data(uuid, raw)
-
-    def _handle_disconnect(self, _client: BleakClient) -> None:
-        _LOGGER.warning("Disconnected from %s", self._address)
-        self._client = None
-        if self._on_disconnect:
-            self._on_disconnect()
+        halves = extract_halves(service_info)
+        if halves is None:
+            return
+        half1, half2 = halves
+        self._on_halves(half1, half2)
