@@ -2,13 +2,19 @@
 
 ## Overview
 
-The integration is intended to run fully locally inside Home Assistant. It will communicate with the Ninja Woodfire Pro device over Bluetooth Low Energy and translate device state into Home Assistant entities.
+The integration runs fully locally inside Home Assistant. It reads the Ninja
+Woodfire Pro's state from its Bluetooth Low Energy **advertisements** and
+translates it into Home Assistant entities. It never connects to the grill,
+so it never conflicts with the Ninja mobile app. It is **read-only**.
 
 The project is split into three layers:
 
-1. Bluetooth client: connects to the device, subscribes to notifications, and writes commands.
-2. Protocol layer: parses notification payloads and builds command payloads.
-3. Home Assistant integration: exposes devices, entities, config flow, diagnostics, and repairs.
+1. Bluetooth listener: registers a passive advertisement callback and hands
+   the grill's two manufacturer-data payloads to the decoder.
+2. Decode layer: decrypts each advertisement payload and unpacks its
+   bit-fields into a device-state structure.
+3. Home Assistant integration: exposes the device, read-only entities, config
+   flow, and diagnostics.
 
 ## Bluetooth Strategy
 
@@ -17,36 +23,32 @@ encryption** (see [docs/crypto-status.md](docs/crypto-status.md) for the full
 reverse-engineering detail):
 
 1. **Passive advertisements** — broadcast continuously, no connection
-   needed. Encrypted with a **static** AES-256 key (embedded in the vendor
-   app's native library, not per-device/per-session). Fully decoded as of
-   2026-07-01: the 344-bit field layout is known and correlated against real
-   cook sessions for cook mode, temperatures, cook time, and probe state.
-   This is the preferred path for **read-only monitoring** — it needs no BLE
-   connection at all, so it never conflicts with the Ninja mobile app (see
-   `switch.ninja_woodfire_connection_enabled`, which only matters for the
-   GATT path below).
+   needed. Encrypted with a **static** AES-256 key (a fixed key/IV recovered
+   from the vendor library, not per-device or per-session). Fully decoded and
+   ported to pure Python (`custom_components/ninja_woodfire/crypto.py`),
+   verified byte-for-byte against the vendor code. **This is the channel the
+   integration uses.** No connection means no conflict with the mobile app.
 2. **GATT** (after `Connect`) — a per-session key negotiated fresh on every
    connection, held only in-memory on both ends, never persisted. Unsolved.
-   Needed only for **sending commands** (temperature/mode/timer changes,
-   start/stop cook) — out of scope until reverse-engineered separately.
+   It would be needed only for **sending commands** (temperature/mode/timer
+   changes, start/stop cook), which the integration does not do.
 
-The previous investigation showed that obtaining Android HCI logs can be
-unreliable on recent Pixel devices. The preferred path for further protocol
-work is direct discovery from the Raspberry Pi or the Home Assistant host
-using Python and `bleak`, or (for the advert channel specifically)
-`tools/live_decode.py`, which decodes passing adverts continuously without
-needing a phone at all.
+## Data Flow
 
-Initial tooling should:
+```text
+Ninja Woodfire Pro
+  -> BLE advertisements (two manufacturer-data payloads, company id 0x0C4F)
+  -> Passive Bluetooth callback (bluetooth.py)
+  -> Decrypt each half (crypto.py)  +  bit-field decode (advert_decode.py)
+  -> State mapping (advert.py)
+  -> Data coordinator (coordinator.py, tracks presence by advert recency)
+  -> Home Assistant read-only entities
+```
 
-- scan for nearby BLE devices;
-- connect to the Ninja device;
-- list services and characteristics;
-- subscribe to candidate notification characteristics;
-- log raw payloads with timestamps;
-- avoid writing commands until their meaning is understood.
+There is no reverse (command) path: the GATT command channel's crypto is
+unsolved, so the integration exposes no controls.
 
-## Expected Home Assistant Structure
+## Home Assistant Structure
 
 ```text
 custom_components/ninja_woodfire/
@@ -54,33 +56,28 @@ custom_components/ninja_woodfire/
   manifest.json
   config_flow.py
   const.py
-  coordinator.py
-  bluetooth.py
-  protocol.py
+  coordinator.py       passive-scan coordinator
+  bluetooth.py         passive advertisement listener
+  crypto.py            advertisement decrypt (pure Python AES)
+  advert_decode.py     bit-field decoder
+  advert.py            decrypt + decode + state mapping
+  protocol.py          shared state types
   sensor.py
-  switch.py
-  number.py
-  select.py
+  binary_sensor.py
   diagnostics.py
 ```
 
-The exact entity set should follow the discovered protocol rather than assumptions from the mobile app.
+## Known Risk
 
-## Data Flow
-
-```text
-Ninja Woodfire Pro
-  -> BLE notifications
-  -> Bluetooth client
-  -> Protocol parser
-  -> Data coordinator
-  -> Home Assistant entities
-```
-
-Control commands should flow in the opposite direction only after the protocol has been documented and validated.
+The exact extraction of the grill's two manufacturer-data AD structures (both
+under company id 0x0C4F, one 20 bytes and one 23 bytes) from Home Assistant's
+`BluetoothServiceInfoBleak` object has not yet been verified against a real HA
+host. `bluetooth.py` implements a primary path (parsing `service_info.raw`)
+and a fallback; this may need debugging once tried live.
 
 ## Safety Notes
 
-Cooking appliances should be treated conservatively. The integration should not send unknown payloads, bypass safety states, or expose controls before the valid ranges and device behavior are understood.
-
-The first working version should prefer read-only monitoring. Control can be added later with explicit validation and clear error handling.
+The integration is read-only and sends nothing to the appliance. If control is
+ever added (contingent on solving the GATT command crypto), it must include
+explicit range validation and clear error handling before exposing any
+controls.

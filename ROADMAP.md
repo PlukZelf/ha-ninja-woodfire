@@ -47,26 +47,28 @@ key, unsolved, needed only for sending commands).
 
 ## Sprint 3: Home Assistant Integration
 
-- [ ] Add the custom integration manifest.
-- [ ] Implement config flow and Bluetooth discovery.
-- [ ] Add coordinator and device client.
-- [ ] Add first read-only entities.
-- [ ] Add tests for parsing and coordinator behavior.
+- [x] Add the custom integration manifest.
+- [x] Implement config flow and Bluetooth discovery.
+- [x] Add coordinator and device client (passive advertisement scanner).
+- [x] Add first read-only entities (sensors + binary sensors).
+- [x] Add tests for parsing (`tests/test_advert.py`).
+- [ ] Verify manufacturer-data extraction on a real Home Assistant host
+      (implemented but not yet tested live — see the known risk in
+      ARCHITECTURE.md).
 
-## Sprint 4: Control Features
+## Sprint 4: Read-Only Polish
 
-- [ ] Add safe control commands once the protocol is understood.
-- [ ] Add validation for cooking modes, temperature limits, and timers.
+- [x] Ship a pure-Python advertisement decoder (no vendor `.so` needed).
+- [ ] Finish confirming advertisement field semantics against live cook
+      sessions (see the open items in Sprint 2 and docs/crypto-status.md).
 - [ ] Document known device models and firmware behavior.
 - [ ] Prepare a first tagged release.
 
-### Planned control entities
+## Control entities — not planned
 
-- [ ] **Cook function** (`select`) — Grill / Smoke / AirCrisp (Air Fry) / Roast / Bake / Broil / Dehydrate / MaxRoast / SlowCook.
-- [ ] **Cook type** (`select` or `switch`) — probe (thermometer) vs. time-based cooking.
-- [ ] **Target temperature** (`number`) — with per-mode min/max limits.
-- [ ] **Cook time** (`number` / duration) — for time-based cooking.
-- [ ] **Wood flavor** (`select`) — pellet flavor selection.
-
-> All control entities depend on write support to the grill; they land after
-> the protocol work in Sprint 2 is complete.
+Control entities (cook function, cook type, target temperature, cook time,
+wood flavor, start/stop) were prototyped and then **removed**: sending
+commands requires the GATT command channel, whose per-session encryption is
+unsolved and not derivable offline (see
+[docs/crypto-status.md](docs/crypto-status.md)). Until that crypto is broken,
+this integration stays read-only and no control entities are on the roadmap.

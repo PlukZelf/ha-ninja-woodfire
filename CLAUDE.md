@@ -28,18 +28,26 @@ Geen cloud, geen Ninja account. GitHub: https://github.com/PlukZelf/ha-ninja-woo
 6. Device → 20-byte indication (device state, encrypted)
 
 ## Encryptie status
-- Alles encrypted, per-sessie session key via challenge-response
-- Native library: `libgrillcore_android.so` (Rust ARM64, Android Bionic — laadt NIET op HA OS)
-- JNI argumentvolgorde: `extDecryptData(String uuid, byte[] data)` — uuid eerst
-- Frida-route GEBLOKKEERD door native anti-Frida detectie in de .so
-- Statische analyse tools gebouwd in `tools/` (zie commits van 28 juni)
+- **Advertisement-kanaal: OPGELOST.** Statische AES-256-CBC met vaste key/IV,
+  volledig gereverse-engineerd en byte-voor-byte geverifieerd tegen de `.so`.
+  Pure-Python port draait in de integratie (`custom_components/ninja_woodfire/crypto.py`)
+  — geen `.so` of emulator nodig bij eindgebruikers.
+- **GATT-kanaal: nog onopgelost.** Per-sessie key via challenge-response,
+  alleen in-memory, niet offline af te leiden. Nodig om commando's te STUREN;
+  niet nodig voor read-only monitoring. Buiten scope.
+- Native library `libgrillcore_android.so` (Rust ARM64) is alleen nog een
+  RE-oracle in `tools/`, nooit gecommit, nooit gedistribueerd.
 
 ## Huidige prioriteit
-De `tools/infer_btcore_crypto_candidates.py` en verwante scripts draaien op de .so
-om de crypto-kern functies te identificeren. Daarna Ghidra of objdump analyse van
-die specifieke functies om het encryptie-algoritme te bepalen.
-
-De .so staat op: `~/Downloads/ninja_arm64/lib/arm64-v8a/libgrillcore_android.so`
+De integratie is herschreven naar **passief BLE advertisement scannen**
+(geen GATT-verbinding, read-only sensors/binary_sensors). De crypto is
+opgelost en meegeleverd als pure Python. Openstaand:
+1. De extractie van de twee manufacturer-data AD-structs (beide company id
+   0x0C4F, 20 en 23 bytes) uit HA's `BluetoothServiceInfoBleak` is nog NIET
+   getest tegen een echte HA-host — primaire pad (`service_info.raw`
+   parsen) + fallback, mogelijk te debuggen bij eerste live-run.
+2. Advertisement-veldsemantiek verder bevestigen tegen live cook-sessies
+   (zie `docs/crypto-status.md`).
 
 ## GrillState structuur (bevestigd via Android logcat)
 ```python
@@ -54,13 +62,16 @@ ignitionProgress / preheatProgress / cookProgress / restingProgress (0-100)
 connectedToBluetooth / connectedToInternet / error
 ```
 
-## Ontbrekende integratie-onderdelen (bouwen zodra crypto werkt)
-1. `switch.py` — Connected switch (persisteren via HA storage)
-2. GATT-validatie in `bluetooth.py` bij elke verbinding
-3. Volledige backoff-logica in `coordinator.py`
-4. Entities markeren als unavailable bij disconnect
-5. `EntityCategory.DIAGNOSTIC` op error_code en connected sensors
-6. Options flow in `config_flow.py`
+## Architectuur (herschreven, commit eb7fff5)
+- **Passief advertisement scannen** — géén GATT-connect. Pipeline:
+  `bluetooth.py` (passieve callback) → `crypto.py` (decrypt) →
+  `advert_decode.py` (bit-fields) → `advert.py` (state-mapping) →
+  `coordinator.py` (presence via advert-recency) → read-only entities.
+- Alleen sensors + binary_sensors. GEEN control-entities.
+- VERWIJDERD bij de rewrite: `switch.py`, `button.py`, `number.py`,
+  `select.py`, `time.py`, `commands.py`, `grillcore_native.py` en de map
+  `lib/` — die hadden alleen zin voor GATT-control, wat niet kan zonder de
+  onopgeloste GATT-write-crypto. Niet opnieuw aanmaken.
 
 ## Commit stijl
 ```
@@ -73,7 +84,6 @@ docs: update gatt spec
 ## Testcommando's
 ```bash
 pytest tests/ -v
-python tools/infer_btcore_crypto_candidates.py --so ~/Downloads/ninja_arm64/lib/arm64-v8a/libgrillcore_android.so
 python tools/parse_btsnoop_att.py <btsnoop.log> --writes-only
 ```
 
