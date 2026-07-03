@@ -16,7 +16,7 @@ A local Home Assistant integration for the Ninja Woodfire Pro outdoor grill. It 
 - **Passive** BLE advertisement decoding — no connection to the grill, no pairing, no interference with the Ninja app.
 - Read-only sensors and binary sensors for grill state, decoded locally from the broadcast packets.
 
-There are **no control entities** (start/stop cook, set temperature, etc.). Sending commands would require the grill's GATT command channel, whose per-session encryption is not solved — see [docs/crypto-status.md](docs/crypto-status.md).
+There are **no control entities** (start/stop cook, set temperature, etc.). Sending commands would require the grill's GATT command channel, whose **per-session** encryption is not yet solved. Recent reverse-engineering has confirmed the grill accepts a from-scratch local BLE client (no app, no cloud) and has captured the plaintext state and command formats — the one remaining blocker is deriving the per-connection session key from the grill's handshake. See [docs/crypto-status.md](docs/crypto-status.md) for the full status.
 
 ## Supported devices
 
@@ -131,7 +131,11 @@ tests/                              Tests
 The device uses two separate BLE channels with unrelated encryption:
 
 - **Advertisements** (no connection needed): fully decoded and ported to pure Python (`custom_components/ninja_woodfire/crypto.py`) — a static AES-256-CBC decrypt with a fixed key/IV, verified byte-for-byte against the vendor library. This is the channel the integration uses. See [docs/crypto-status.md](docs/crypto-status.md).
-- **GATT** (used for sending commands): still unsolved — its session key is negotiated fresh per connection and isn't derivable offline. This is why no control entities exist.
+- **GATT** (used for reading richer state and sending commands): partially reverse-engineered but not yet usable. What's known so far:
+  - The grill accepts a **from-scratch local BLE client** (proven with `bleak` — no app, no cloud, no account) and streams encrypted state on characteristic `b004`.
+  - The **plaintext state format** (a device-id header + state fields) and the **command format** (simple JSON — `{"cmd": ..., "data": [...]}`) have both been captured.
+  - The GATT encryption key is **per-session** — established fresh by a handshake on every connection and not baked into the vendor library (confirmed from three independent angles). Each encrypted message also carries a per-message nonce.
+  - The single remaining blocker is reversing that handshake's **key-derivation** (challenge → session key). Until it's solved, GATT state can't be decrypted locally and no commands can be sent — which is why no control entities exist.
 
 ### Tests
 
