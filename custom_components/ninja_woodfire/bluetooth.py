@@ -124,9 +124,11 @@ class NinjaWoodfireScanner:
         service_info: BluetoothServiceInfoBleak,
         change: BluetoothChange,
     ) -> None:
+        _LOGGER.warning("ADVERT RECEIVED for %s", self._address)
         halves = extract_halves(service_info)
         if halves is not None:
             half1, half2 = halves
+            _LOGGER.warning("Found both halves: %d + %d bytes", len(half1), len(half2))
             self._on_halves(half1, half2)
             return
 
@@ -134,4 +136,7 @@ class NinjaWoodfireScanner:
         if self._on_single_half is not None:
             single = extract_single_half(service_info)
             if single is not None:
+                _LOGGER.warning("Found single half: %d bytes", len(single))
                 self._on_single_half(single)
+            else:
+                _LOGGER.warning("No halves or single half found in advert")
