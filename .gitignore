@@ -48,3 +48,8 @@ tools/artifacts/
 tools/lib/*.so
 REBOOT.md
 ninja_idtoken.txt
+
+# GATT-send fixtures contain live key material / device identifiers — never
+# commit them; only the format-contract README is tracked.
+tools/gatt_send/fixtures/*.json
+!tools/gatt_send/fixtures/README.md
