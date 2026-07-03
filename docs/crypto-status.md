@@ -231,6 +231,17 @@ The Ayla cloud path is retained below as verified reference (and as an optional
 future feature for internet-connected grills), but it is **not a solution for
 the local-first goal.**
 
+**Clarified (2026-07-03, final): the app's cloud requirement is a GATE, not a
+grill requirement.** The user confirmed (earlier DNS-block test): blocking the
+Ayla domain makes the official app refuse to connect to the grill at all — zero
+native BLE calls fire. So the app *chooses* not to do local BLE without cloud
+reachability (account/telemetry business logic). The grill's own protocol does
+NOT need internet — it is fully controllable over local BLE. **A from-scratch HA
+integration is not bound by the app's gate:** it can send BLE commands directly,
+offline, no account. Therefore the ONLY blocker for fully-local control is the
+GATT-write per-session key (below). Cloud is a dead end (offline grill never
+polls it); local BLE is the real and worthwhile target.
+
 ---
 
 ### ⭐ (2026-07-03): control CAN be done via the AYLA CLOUD (for online grills only)
