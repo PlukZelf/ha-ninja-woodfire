@@ -98,6 +98,7 @@ class NinjaWoodfireScanner:
         self._on_halves = on_halves
         self._on_single_half = on_single_half
         self._unregister: Callable[[], None] | None = None
+        self._debug_dumps = 0
 
     def start(self) -> None:
         """Register the passive callback. Idempotent."""
@@ -124,7 +125,20 @@ class NinjaWoodfireScanner:
         service_info: BluetoothServiceInfoBleak,
         change: BluetoothChange,
     ) -> None:
-        _LOGGER.warning("ADVERT RECEIVED for %s", self._address)
+        if self._debug_dumps < 15:
+            self._debug_dumps += 1
+            raw = getattr(service_info, "raw", None)
+            _LOGGER.warning(
+                "ADVERT DUMP #%d src=%s connectable=%s rssi=%s raw=%s mfr=%s svc_data=%s",
+                self._debug_dumps,
+                getattr(service_info, "source", "?"),
+                getattr(service_info, "connectable", "?"),
+                getattr(service_info, "rssi", "?"),
+                bytes(raw).hex() if raw else None,
+                {k: bytes(v).hex() for k, v in (service_info.manufacturer_data or {}).items()},
+                {k: bytes(v).hex() for k, v in (service_info.service_data or {}).items()},
+            )
+        _LOGGER.debug("Advert received for %s", self._address)
         halves = extract_halves(service_info)
         if halves is not None:
             half1, half2 = halves
@@ -136,7 +150,7 @@ class NinjaWoodfireScanner:
         if self._on_single_half is not None:
             single = extract_single_half(service_info)
             if single is not None:
-                _LOGGER.warning("Found single half: %d bytes", len(single))
+                _LOGGER.debug("Found single half: %d bytes", len(single))
                 self._on_single_half(single)
             else:
-                _LOGGER.warning("No halves or single half found in advert")
+                _LOGGER.debug("No halves or single half found in advert")
