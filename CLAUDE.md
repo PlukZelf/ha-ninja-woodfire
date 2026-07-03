@@ -47,14 +47,29 @@ Geen cloud, geen Ninja account. GitHub: https://github.com/PlukZelf/ha-ninja-woo
     synchrone leaf-functies aanroepen (waarom de advert-crypto werkt) maar
     niet de async executor/reactor draaien die de command-crypto nodig heeft.
     De sessie-sleutel is dus NIET offline af te leiden.
-  - Fase 2 (live Frida-trace): **enige overgebleven route.** De Gadget-app
-    dispatcht geen commando's en crasht bij reconnect. Volgende poging:
-    `frida -U -f` spawn-inject van de STOCK-app + anti-detectie-bypass, hook
-    de crypto-exports en stuur een echt commando zodat de live async-runtime
-    een plaintext↔ciphertext↔key-sample oplevert. Commando's sturen kan
-    alleen met een live geïnstrumenteerde sessie, niet offline.
+  - Fase 2 (live Frida-trace): grotendeels achterhaald — zie hieronder,
+    de app stuurt commando's helemaal NIET via BLE.
 - Native library `libgrillcore_android.so` (Rust ARM64) is alleen nog een
   RE-oracle in `tools/`, nooit gecommit, nooit gedistribueerd.
+
+## ⛔ KERNBEPERKING — commando's sturen (2026-07-03)
+- **De grill komt NOOIT op internet — dat is het hele idee.** Dit is een
+  harde ontwerp-eis van de gebruiker, niet onderhandelbaar.
+- Live getraced: de officiële app stuurt commando's **via de Ayla-cloud**
+  (plaintext property-write `SET_Cook_Command`), NIET via BLE. Bewezen
+  end-to-end (`tools/ayla_cloud_prototype.py`, `201 Created`).
+- **MAAR:** cloud-commando's bereiken de grill alleen als de grill zélf de
+  cloud pollt over WiFi. Een offline grill pollt nooit → commando blijft
+  eeuwig in de cloud staan. HA-internet helpt niet; de kapotte schakel is
+  cloud→grill, die het internet van de *grill* vereist.
+- **Gevolg:** het enige kanaal dat een offline grill bereikt is lokaal BLE
+  = het GATT-write-pad, waarvan de per-sessie-encryptie niet offline af te
+  leiden is (async-runtime, zie `docs/crypto-status.md`). Lokaal commando's
+  sturen is dus geblokkeerd op precies het moeilijke stuk.
+- Stand van zaken: **read-only monitoring = opgelost/lokaal/shipped.**
+  Commando's sturen = geen werkende route voor een air-gapped grill.
+  Cloud-control blijft als optionele feature voor gebruikers die hun grill
+  wél op WiFi zetten.
 
 ## Huidige prioriteit
 De integratie is herschreven naar **passief BLE advertisement scannen**

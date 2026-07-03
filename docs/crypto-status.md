@@ -204,7 +204,36 @@ Out of scope for a read-only passive-monitoring integration (which only
 needs the advert channel, now solved). Would need to be solved separately
 to support sending commands (temperature changes, starting a cook, etc.).
 
-### ⭐ BREAKTHROUGH (2026-07-03): control is done via the AYLA CLOUD, not BLE
+### ⛔ SHOWSTOPPER (2026-07-03): cloud control does NOT fit this project
+
+**The cloud-control finding below is real and verified, but it CANNOT serve
+this project's use case.** Core design constraint (from the user, restated):
+**the grill is never connected to the internet — that is the entire point.**
+
+Cloud commands only reach the grill when **the grill itself** polls the Ayla
+cloud over its own WiFi. An offline grill never polls, so a command written to
+the cloud (even the verified `201 Created`) is **queued forever and never
+delivered**. HA having internet does not help: the broken link is cloud →
+grill, which requires the *grill's* internet — which by design does not exist.
+(The test grill's `connection_status` was `Offline`, last cloud-connected
+2026-05-08 — consistent with this.)
+
+**Consequence:** the only channel that reaches an offline grill is **local
+BLE** — i.e. the GATT-write path, whose per-session encryption is (per the
+analysis below) not derivable offline. So:
+- **Read-only monitoring:** solved, local, shipped. ✅
+- **Local command sending:** blocked on the unsolved GATT-write session key.
+- **Cloud command sending:** technically works end-to-end (proven), but is
+  useless for an air-gapped grill; only relevant to users who DO put their
+  grill on WiFi.
+
+The Ayla cloud path is retained below as verified reference (and as an optional
+future feature for internet-connected grills), but it is **not a solution for
+the local-first goal.**
+
+---
+
+### ⭐ (2026-07-03): control CAN be done via the AYLA CLOUD (for online grills only)
 
 **The entire GATT-write reverse-engineering below is moot for control.** A
 live Frida + logcat trace of the official app sending a real temperature
