@@ -526,6 +526,119 @@ Net: sending commands requires a live, Frida-instrumented session on the
 phone — it is not derivable purely offline. Read-only monitoring (the
 shipped integration) is unaffected and complete.
 
+#### ⭐⭐⭐ Update (2026-07-03, evening): JNI-boundary capture SUCCEEDED — plaintext formats obtained; laptop reaches grill directly
+
+The Gadget build **is** usable for *passive* capture if hooks are installed
+**before** the GATT session starts (attach-first, connect-second) and kept
+**thin** (single export, minimal JNI work in the callback). Attaching mid-session,
+or heavy per-call JNI reads, stalls the BLE dispatch thread → the grill drops /
+the app freezes. With the thin attach-first method we captured, live and
+in-context (no async abort — we only *observe* the app's own decrypt/send):
+
+**1. GATT STATE plaintext (`extDecryptData`), b004 message:**
+```
+IN  (b004 cipher, 64B): <64 bytes ciphertext>
+OUT (plaintext,   47B): 0c 26 <16-byte ASCII device serial — REDACTED>  00×9  25 03 03 00 b3 00 01 01 06 02 00 00  <9-byte trailer>
+```
+Structure: `0x0c` len, `&`(0x26)+16-char device serial (device-identifying —
+NOT recorded here), zero pad, `0x25` state-block marker, state fields (same
+semantics as the advert bit-fields), 9-byte trailer (MAC/CRC/counter). The full
+raw pair is kept only in the gitignored scratchpad, never committed.
+
+**2. COMMAND layer is plain JSON (`extSendBTPayload`):**
+```
+{"cmd":"Connect","id":"<MAC>","data":[0],"key":null}
+```
+i.e. `{"cmd":<Command>,"id":<MAC>,"data":[…],"key":<null|…>}`. The app hands
+grillcore this JSON; grillcore does handshake+encrypt+BLE-write internally.
+`extEncryptData` NEVER fires for a temp change → the command-encrypt uses an
+**internal (non-JNI) path**. So the command *format* is trivial; only the
+wire-encryption below `extSendBTPayload` is unknown.
+
+Empirical: temp changes fire `extSendBTPayload` and the grill **accepts them**
+while hooked (verified 40→45, 45→50), but only on a **freshly-connected**
+session; after any disconnect/reconnect the app stops dispatching (`Connected
+count: 0`) and needs a full app restart. The Gadget instance degrades after
+~5–7 attach cycles and eventually won't initiate GATT at all.
+
+**3. THE LAPTOP REACHES THE GRILL DIRECTLY (no app/cloud/phone).** `bleak` on
+the dev PC: `BleakScanner` finds the grill (service `fcbb`), `BleakClient`
+connects, and the grill **streams 64-byte encrypted state on `b004`
+unprompted** (no auth write sent). `b001` is **readable on demand** (64B), and
+**every read returns different ciphertext** for constant state → a
+**per-message nonce/IV** (which is why the static advert key never decrypts
+b004). GATT layout confirmed from the laptop: b001 read 0x000d, b002
+write(+w/o-rsp) 0x0010, b003 notify 0x0012, b004 indicate 0x0015.
+
+#### ⭐ Static analysis verdict (2026-07-03): the b004 key is PER-SESSION — no static constant to extract
+
+`extDecryptData` (0x10401c) is a thin JNI thunk → calls the real decrypt
+`FUN_003c3ba0` (0x2c3ba0). That function is mostly log calls (`bl 0x12cef8`,
+gated by the log-level global at `x27+0xbc8`); the actual decrypt is an
+**indirect vtable dispatch**:
+```
+0x2c3c7c  ldr x21,[x21]        ; deref session handle
+0x2c3c8c  ldr x22,[x8,#0x558]  ; fn-ptr from the session object (+0x558)
+0x2c3cf4  blr x22              ; per-session decrypt via vtable
+```
+The decrypt routine **and key live inside a per-session Rust struct** resolved
+at runtime (the session registry). There is **no baked-in key constant** on
+this path — confirming from a third angle (alongside the changing-nonce and the
+async-runtime findings) that the GATT/b004 key is **per-session**, established
+by the `Connect` handshake, not static like the advert key.
+
+#### THE SINGLE REMAINING CRUX (well-defined): reverse the Connect handshake key-derivation
+
+Everything local now reduces to ONE question — is the session-key derivation
+**synchronous** (like the advert leaf `FUN_00230460`, which we cracked and
+ported to Python) or **inside the tokio async layer** (not offline-derivable)?
+Wire framing (from btsnoop):
+```
+CCCD 0x0017 <- 02 00        ; enable indications, session start
+grill -> 20B challenge      ; random per session
+app   -> 48B auth write     ; b002 handle 0x0011; built from challenge (+secret?)
+… further 20B ind / 48B writes
+```
+Next RE step: disassemble the function that **consumes the 20B challenge and
+produces the 48B write / session key**. If synchronous → pure-Python derivation
+→ full local read *and* write (encrypt the JSON, write b002) from HA's own BLE,
+no phone. If it routes through the async session machinery → same wall as the
+command path.
+
+**State of play after this session:**
+- Advert read: solved, pure-Python, shipped. ✅ (HA confirmed picking up a live
+  temp change through it.)
+- GATT read/write: blocked solely on the Connect handshake key-derivation
+  (single, well-scoped target above).
+- Plaintext state format + command JSON format: **captured** (above), so once the
+  key is derivable, both directions are straightforward.
+
+#### Handshake RE probe (2026-07-03, evening): challenge path enters async/session graph immediately — no synchronous key-derivation leaf
+
+Disassembled the incoming-data path (capstone, no Ghidra needed):
+- `extProcessBTData` (0x10ae40) → session lookup `0x117ea4` → `0x22781c` (init)
+  → **router `0x2aa168`** (takes data buf + len + type flag `w6`).
+- `0x2aa168` immediately does **atomic Arc/Rc refcounting** (`ldxr`/`stlxr` at
+  0x2aa1e8) and heap allocs (`0x44a0a0`) — i.e. it is already inside the
+  **refcounted Rust session object graph**, not a clean leaf. No branch on
+  data-length (20B challenge vs 62B advert) leading to an isolated,
+  globals-free crypto function like the advert leaf `FUN_00230460`.
+- The `.so` is **fully stripped**: no cargo/registry paths, no `.rs` strings,
+  no crypto-crate identifiers (`Aes256`/`GenericArray`/`hkdf`/`hmac`/`x25519`
+  etc. all absent from the string table). So there are no symbol hints to
+  shortcut which KDF/cipher the handshake uses.
+
+**Verdict:** the Connect handshake key-derivation is woven into the tokio
+async/session layer (consistent with the "async function in non async context"
+panic and the per-session vtable dispatch at `[session+0x558]`). It is **not**
+a standalone synchronous function that can be quickly ported to Python. Fully
+reversing it is possible but is a **deep multi-session RE effort** (hand-tracing
+stripped Rust async object graphs). The **fastest** route to the session key
+remains a **live capture** on a stable, freshly-launched app instance (the thin
+attach-first JNI-boundary method above works; the blocker is Gadget-instance
+degradation after repeated attach cycles — a fresh reinstall / a stock-app
+`frida -U -f` spawn would give more headroom).
+
 ## Cloud architecture (context only, not a shortcut)
 
 The grill is registered on **Ayla Networks'** white-label IoT cloud
