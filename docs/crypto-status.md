@@ -204,6 +204,56 @@ Out of scope for a read-only passive-monitoring integration (which only
 needs the advert channel, now solved). Would need to be solved separately
 to support sending commands (temperature changes, starting a cook, etc.).
 
+### GATT session-key attack progress (2026-07-03)
+
+**Phase 1 (wire protocol) — DONE.** Captured a live handshake via btsnoop
+(`captures/btsnoop-setcmd-last.log`, gitignored) and confirmed the exact
+framing with `tools/analyze_ninja_handshake.py --mac 0ce5a3198052`:
+
+- `W len=2` → handle 0x0017, value `02 00` (CCCD enable indications; session start)
+- `I len=20` → handle 0x0016 (encrypted challenge, random per session)
+- `W len=48` → handle 0x0011 (auth response + commands; always exactly 48B)
+- further 20B indications / 48B writes follow
+
+Every app→grill write is **exactly 48 bytes**, every grill→app indication
+**exactly 20 bytes** — no length variation. 48 = likely 16B IV/nonce + 32B
+ciphertext (or 3× AES blocks). All ciphertext; btsnoop alone reveals no
+plaintext.
+
+**Phase 2 (live Frida trace) — BLOCKED (app instability).** The
+Gadget-patched app (`~/ninja_patched_aligned.apk`, objection-injected,
+NINJA-keystore signed) *can* be attached to: `tools/frida_hook_gatt_session.js`
+resolves all six BTManager crypto exports live (`extEncryptData`,
+`extDecryptData[WithOptionalKey]`, `extProcessBTData`, `extSendBTPayload`).
+BUT: sending a temperature change does **not dispatch** — not even
+`extSendBTPayload` fires — and the app crashes on grill reconnect. Cloud
+reachability confirmed fine (pings `ingress-eufield.aylanetworks.com`), so
+it is NOT the cloud gate. Conclusion: the repackaged Gadget build is fine
+for passive inspection but too unstable to drive the live *control* path.
+Next option if revisited: `frida -U -f` spawn-inject the STOCK app with an
+early anti-detection bypass, instead of attaching to the Gadget build.
+
+**Phase 3 (offline emulator replay) — IN PROGRESS, most stable route.**
+`tools/replay_gatt_handshake.py` replays the captured challenge through the
+real `.so` in Unicorn. The emulator exposes `process_bt_data`,
+`decrypt_data`, `encrypt_data[_with_key]`, and — purpose-built for this —
+`set_random_replay()` to feed deterministic entropy to `getrandom()` so a
+captured session's derived key can be reproduced offline. Current state:
+all session calls return `None` with `INVALID MEM access` faults during
+setup. Two concrete bugs to fix next session:
+  1. **JNI arg order:** `_jni_call` passes `[env, this, uuid_handle,
+     data_handle]`, but the real signature is `(data: ByteArray, uuid:
+     String)` → data and uuid are likely swapped for encrypt/decrypt.
+  2. **Session init:** the session path needs prior init/registration
+     (the advert `decode_advert` path is self-contained and works; the
+     session registry path is unvalidated scaffolding — never run
+     successfully before).
+Once those are fixed: feed challenge → `process_bt_data`, then check whether
+`decrypt_data(indication)` yields structured plaintext. If yes, the session
+key is derivable offline (with `set_random_replay` for app entropy) and GATT
+is crackable without a live phone. If it needs live BLE I/O the emulator
+can't fake, fall back to Phase 2 spawn-inject.
+
 ## Cloud architecture (context only, not a shortcut)
 
 The grill is registered on **Ayla Networks'** white-label IoT cloud
