@@ -52,9 +52,13 @@ key, unsolved, needed only for sending commands).
 - [x] Add coordinator and device client (passive advertisement scanner).
 - [x] Add first read-only entities (sensors + binary sensors).
 - [x] Add tests for parsing (`tests/test_advert.py`).
-- [ ] Verify manufacturer-data extraction on a real Home Assistant host
-      (implemented but not yet tested live — see the known risk in
-      ARCHITECTURE.md).
+- [x] Verify manufacturer-data extraction on a real Home Assistant host —
+      confirmed working live (2026-07-03): both AD-structs decode correctly
+      via `service_info.raw` when the adapter scans actively.
+- [x] Detect passive-only scanning (the 23-byte advert half only reaches
+      active scanners, via the scan response) and raise a Home Assistant
+      Repair issue pointing the user at the fix.
+- [x] Render cook-time sensors as `H:MM:SS`.
 
 ## Sprint 4: Read-Only Polish
 
@@ -64,11 +68,30 @@ key, unsolved, needed only for sending commands).
 - [ ] Document known device models and firmware behavior.
 - [ ] Prepare a first tagged release.
 
-## Control entities — not planned
+## Sprint 5: GATT Command Channel (control) — reverse-engineering in progress
 
-Control entities (cook function, cook type, target temperature, cook time,
-wood flavor, start/stop) were prototyped and then **removed**: sending
-commands requires the GATT command channel, whose per-session encryption is
-unsolved and not derivable offline (see
-[docs/crypto-status.md](docs/crypto-status.md)). Until that crypto is broken,
-this integration stays read-only and no control entities are on the roadmap.
+Control entities were previously prototyped and removed, and sending
+commands remains unimplemented — but the underlying GATT session-key
+reverse-engineering is now **actively in progress**, not parked. Full
+technical detail in [docs/crypto-status.md](docs/crypto-status.md) ("GATT
+session-key attack progress").
+
+- [x] Phase 1 — confirm the wire protocol: captured a live handshake via
+      btsnoop and confirmed the exact framing (CCCD write → 20-byte
+      encrypted challenge → uniform 48-byte encrypted writes).
+- [x] Phase 3 — offline emulator replay: **ruled out (dead end).** The GATT
+      session/crypto path is built on a Rust async runtime (tokio); tracing
+      `extProcessBTData` hits a `"tried to use async function in non async
+      context"` panic. Unlike the advert crypto (a synchronous leaf function),
+      the command crypto needs a live executor + reactor with real BLE I/O,
+      which the Unicorn emulator cannot run. The key is not derivable offline.
+      See `docs/crypto-status.md` for the full trace.
+- [ ] Phase 2 (now the only viable route) — live Frida on the phone:
+      **spawn-inject the STOCK app** (`frida -U -f`) with anti-detection
+      bypass and hook the crypto exports while a real command is sent,
+      capturing plaintext↔ciphertext↔key from the running async runtime. The
+      earlier attach attempt failed only because the repackaged Gadget build
+      was too unstable to dispatch a command.
+- [ ] Once a session key is captured live, design and
+      implement control entities (temperature, cook mode, start/stop,
+      etc.) — not started, and not guaranteed until the above lands.

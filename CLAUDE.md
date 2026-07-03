@@ -32,9 +32,27 @@ Geen cloud, geen Ninja account. GitHub: https://github.com/PlukZelf/ha-ninja-woo
   volledig gereverse-engineerd en byte-voor-byte geverifieerd tegen de `.so`.
   Pure-Python port draait in de integratie (`custom_components/ninja_woodfire/crypto.py`)
   — geen `.so` of emulator nodig bij eindgebruikers.
-- **GATT-kanaal: nog onopgelost.** Per-sessie key via challenge-response,
-  alleen in-memory, niet offline af te leiden. Nodig om commando's te STUREN;
-  niet nodig voor read-only monitoring. Buiten scope.
+- **GATT-kanaal: nog onopgelost, RE actief in uitvoering (sinds 2026-07-03).**
+  Per-sessie key via challenge-response, alleen in-memory, niet direct
+  offline af te leiden. Nodig om commando's te STUREN; niet nodig voor
+  read-only monitoring. Drie fases (zie `docs/crypto-status.md`, sectie
+  "GATT session-key attack progress"):
+  - Fase 1 (wire protocol): **klaar** — handshake-framing bevestigd via
+    live btsnoop-capture (CCCD-write → 20-byte challenge → 48-byte writes).
+  - Fase 3 (offline emulator-replay): **UITGESLOTEN (doodlopend)** — het
+    GATT-crypto-pad draait op een Rust async-runtime (tokio); tracen van
+    `extProcessBTData` raakt een panic `"tried to use async function in non
+    async context"`, en `decrypt_data_with_key` geeft voor elke sleutel
+    dezelfde garbage (bereikt de cipher nooit). De Unicorn-emulator kan wel
+    synchrone leaf-functies aanroepen (waarom de advert-crypto werkt) maar
+    niet de async executor/reactor draaien die de command-crypto nodig heeft.
+    De sessie-sleutel is dus NIET offline af te leiden.
+  - Fase 2 (live Frida-trace): **enige overgebleven route.** De Gadget-app
+    dispatcht geen commando's en crasht bij reconnect. Volgende poging:
+    `frida -U -f` spawn-inject van de STOCK-app + anti-detectie-bypass, hook
+    de crypto-exports en stuur een echt commando zodat de live async-runtime
+    een plaintext↔ciphertext↔key-sample oplevert. Commando's sturen kan
+    alleen met een live geïnstrumenteerde sessie, niet offline.
 - Native library `libgrillcore_android.so` (Rust ARM64) is alleen nog een
   RE-oracle in `tools/`, nooit gecommit, nooit gedistribueerd.
 

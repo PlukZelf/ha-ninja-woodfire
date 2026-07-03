@@ -7,9 +7,7 @@
 
 A local Home Assistant integration for the Ninja Woodfire Pro outdoor grill. It reads the grill's state directly from its Bluetooth Low Energy advertisements, so there's no cloud, no Ninja account, and no proprietary binary involved.
 
-**This is a work in progress.** The integration listens passively to the grill's BLE broadcasts and decodes them locally — it never connects to the grill, so it never conflicts with the Ninja mobile app. The advertisement encryption has been fully reverse-engineered and ported to pure Python, so state reading works without any phone or vendor library. See [ROADMAP.md](ROADMAP.md) for where things stand, and [docs/crypto-status.md](docs/crypto-status.md) for the reverse-engineering detail.
-
-> **Note:** the exact way Home Assistant surfaces the grill's two manufacturer-data sections has not yet been verified against a live HA host, so first-run behaviour may need debugging. Reports welcome.
+**This is a work in progress.** The integration listens passively to the grill's BLE broadcasts and decodes them locally — it never connects to the grill, so it never conflicts with the Ninja mobile app. The advertisement encryption has been fully reverse-engineered and ported to pure Python, so state reading works without any phone or vendor library, and this has been confirmed working end-to-end on a real Home Assistant host. See [ROADMAP.md](ROADMAP.md) for where things stand, and [docs/crypto-status.md](docs/crypto-status.md) for the reverse-engineering detail.
 
 <br clear="left" />
 

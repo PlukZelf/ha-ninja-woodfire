@@ -287,6 +287,53 @@ captured session. This is an open-ended RE dive into the Rust session
 machinery; success is likely but not guaranteed. If it stalls, Phase 2
 spawn-inject of the STOCK app remains the fallback.
 
+#### Update (2026-07-03, latest): OFFLINE EMULATION IS A DEAD END — the GATT path is async
+
+Traced `extProcessBTData`'s exact call path in the emulator (BL tracer): it
+runs 8 calls then faults at fva `0x12cef8` with a null-deref while
+**formatting a Rust panic**. The panic string (read from the `.so` at the
+constant the faulting code loads) is:
+
+> `"tried to use async function in non async context"`
+
+This reframes the whole blocker. It is NOT merely a missing HashMap entry —
+**the entire GATT session/crypto path is built on a Rust async runtime
+(tokio).** String scan of the `.so`: `runtime`×51, `async`×46, `await`×8,
+`spawn`×7, `tokio`×7, `waker`×6, plus `block_on`, `reactor`, `mpsc`,
+`executor`. `extProcessBTData`, `extEncryptData`, and even the
+`extDecryptDataWithOptionalKey` "bypass" path all route through this async
+machinery (all call the same `FUN_003c3ba0` session lookup). Empirical
+confirmation: `decrypt_data_with_key` fed three different explicit keys
+(zeros-16, zeros-32, `11`×32) returned the **same** pointer-filled garbage
+each time — it is NOT doing AES-with-the-given-key; it returns uninitialised
+buffers because it never reaches the cipher, dying in the async/session
+layer first.
+
+**Conclusion:** unlike the advert crypto (a pure synchronous leaf function —
+`FUN_00230460`, no globals, no async — which is exactly why the pure-Python
+port + emulator oracle both work), the GATT command crypto is entangled with
+a live tokio executor + reactor that expects real BLE socket I/O and driven
+wakers. The Unicorn emulator can call synchronous leaf functions but cannot
+run the async runtime, so **the offline-replay approach (Phase 3) cannot
+reach the session key.** `replay_gatt_handshake.py` and the emulator session
+calls are retained as evidence but are a dead end for key recovery.
+
+**Remaining viable routes for GATT control (both need a live device):**
+1. **Frida spawn-inject the STOCK app** (Phase 2, revisited) with early
+   instrumentation + anti-detection bypass, hooking the crypto exports at the
+   moment a real command is sent — capturing plaintext↔ciphertext↔key from
+   the live async runtime while it actually runs. The earlier attach-based
+   attempt failed only because the Gadget build was too unstable to send a
+   command; `frida -U -f` spawn of the unmodified app avoids the repackaging.
+2. **Hook the app's own session key in memory** once, live, then feed it to
+   `extDecryptDataWithOptionalKey` — but since that path is also async, the
+   key must be *used* live too; simplest is to just read plaintext directly
+   from the app at the JNI boundary via Frida.
+
+Net: sending commands requires a live, Frida-instrumented session on the
+phone — it is not derivable purely offline. Read-only monitoring (the
+shipped integration) is unaffected and complete.
+
 ## Cloud architecture (context only, not a shortcut)
 
 The grill is registered on **Ayla Networks'** white-label IoT cloud

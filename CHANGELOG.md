@@ -60,8 +60,39 @@ The format is based on Keep a Changelog, and this project intends to follow sema
   same-company-ID manufacturer-data sections — see `tools/scan_grill_raw.py`).
 - Identified the device's cloud backend as Ayla Networks (used for account/
   device registration only — not a shortcut for the local BLE crypto).
+- Confirmed live on a real Home Assistant host (2026-07-03): manufacturer-data
+  extraction from `BluetoothServiceInfoBleak.raw` works end-to-end, decoding
+  the grill's full state from passive advertisements.
+- Detected and gated on **active scanning**: half of the grill's state (the
+  23-byte advert payload) only reaches scanners that do active BLE scanning,
+  since it rides in the scan response. The coordinator now detects
+  passive-only reception (repeated unpaired 20-byte halves) and raises a
+  Home Assistant **Repair** issue explaining how to enable active scanning.
+- Cook-time sensors (`time_left`, `time_set`) now render as `H:MM:SS` instead
+  of raw seconds.
+- GATT command-channel reverse-engineering tooling and progress (still
+  unsolved, see "Known limitations" below and `docs/crypto-status.md`):
+  - `tools/analyze_ninja_handshake.py`: confirmed the GATT handshake wire
+    framing from a live btsnoop capture (CCCD write, 20-byte encrypted
+    challenge, uniform 48-byte encrypted writes).
+  - `tools/frida_hook_gatt_session.js`: live Frida hook resolving the native
+    BTManager crypto exports on the Gadget-patched app (currently blocked by
+    app instability on the actual control path, not a cloud dependency).
+  - `tools/replay_gatt_handshake.py`: offline emulator replay of the captured
+    handshake through the real `.so` (retained as evidence; see below — the
+    offline route is now ruled out).
+  - Fixed a JNI argument-order bug in `tools/grillcore_emu.py` affecting
+    `decrypt_data`/`encrypt_data` calls. Established that offline emulation
+    **cannot** recover the session key: the GATT crypto path runs on a Rust
+    async runtime (tokio) that the Unicorn emulator cannot drive (traced to a
+    `"tried to use async function in non async context"` panic).
 
 ### Known limitations
 
-- The GATT channel (needed to send commands) remains unsolved; its session
-  key is negotiated fresh per connection and not derivable offline.
+- The GATT command channel (needed to send commands) remains unsolved.
+  Reverse-engineering is in progress: wire protocol confirmed; offline
+  emulator replay **ruled out** (the command crypto is async-runtime-bound,
+  not an offline-emulatable leaf function like the advert crypto); the
+  remaining viable route is a live Frida spawn-inject of the stock app to
+  capture the key while a real command is sent — see `docs/crypto-status.md`.
+  No control entities exist yet.
