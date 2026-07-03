@@ -67,10 +67,11 @@ class NinjaWoodfireCoordinator(DataUpdateCoordinator[NinjaState]):
 
     async def async_start(self) -> None:
         """Register the passive scanner. Called from __init__.py setup."""
+        _LOGGER.warning("COORDINATOR START: registering scanner for %s", self._address)
         self._scanner.start()
         self._state = NinjaState(connected=False)
         self.async_set_updated_data(self._state)
-        _LOGGER.debug("Passive scanner started for %s", self._address)
+        _LOGGER.warning("COORDINATOR START: scanner registered for %s", self._address)
 
     async def async_stop(self) -> None:
         """Unregister the scanner. Called from __init__.py unload."""
