@@ -204,6 +204,49 @@ Out of scope for a read-only passive-monitoring integration (which only
 needs the advert channel, now solved). Would need to be solved separately
 to support sending commands (temperature changes, starting a cook, etc.).
 
+### ⭐ BREAKTHROUGH (2026-07-03): control is done via the AYLA CLOUD, not BLE
+
+**The entire GATT-write reverse-engineering below is moot for control.** A
+live Frida + logcat trace of the official app sending a real temperature
+change (45 → 40 while cooking) proved the command does **NOT** go over BLE at
+all — no `extSendBTPayload` / `extEncryptData` fires. It is sent as a
+**plaintext Ayla cloud property write**:
+
+- Cloud: **Ayla Networks**, EU env — `https://ads-eu.aylanetworks.com`
+  (user API `https://user-field-eu.aylanetworks.com`). Auth: Okta/Auth0
+  bearer (`https://logineu.sharkninja.com`) → Ayla session.
+- Device is addressed by its Ayla DSN / `device_key` (value REDACTED — it is
+  device-identifying; keep it out of the repo per "Nooit committen").
+- **Command property:** `SET_Cook_Command` (`direction:input`,
+  `read_only:false`, `key:748000358`). Observed payload shape for a temp
+  change (values illustrative, DSN redacted):
+  ```json
+  {"id":<DSN>,"mode":"dehydrate","seconds set":21600,"temp":40,"smoke":0,"skip preheat":0}
+  ```
+- **State properties (read):** `GET_GrillState` (748000375), `GET_CookState`
+  (748000377), `GET_ProbeState` (748000376) — full plaintext JSON with
+  `temps` (grill/air/smoke/probe0_a…/main/ui), `io.lid open`, probe
+  plugged-in/active/temp/progress, etc.
+- App credentials (EU prod `app_id`/`app_secret`) are present in the app and
+  in the captured logcat, but are **NOT committed** (credential boundary).
+  They live only in local capture notes on the dev machine.
+
+**Implication:** sending commands from HA is a **standard Ayla IoT cloud
+integration** (HTTPS REST property writes, account-authenticated) — no BLE
+session-key crypto needed. The BLE channel is read-only advertisements even
+in the official app. Tradeoff: this is **cloud control (needs internet +
+Ninja account)**, unlike the local read-only advert path. It is, however,
+the way the official app itself does it, and vastly simpler than the (now
+confirmed unnecessary) GATT-write crypto. Next step: prototype an Ayla
+property write against the device DSN using the app credentials + an Ayla
+user login (all kept local, never committed).
+
+**Everything below about the GATT session key remains true but is now only of
+academic interest** — the app never uses BLE-write for control, so we don't
+need it.
+
+---
+
 ### GATT session-key attack progress (2026-07-03)
 
 **Phase 1 (wire protocol) — DONE.** Captured a live handshake via btsnoop
