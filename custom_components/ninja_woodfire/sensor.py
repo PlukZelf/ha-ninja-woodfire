@@ -62,21 +62,17 @@ SENSOR_DESCRIPTIONS: tuple[NinjaSensorDescription, ...] = (
     NinjaSensorDescription(
         key="time_left",
         name="Time Remaining",
+        # Bare duration-in-seconds (no state_class/precision) so the
+        # frontend renders H:MM:SS instead of a raw number.
         native_unit_of_measurement=UnitOfTime.SECONDS,
-        suggested_unit_of_measurement=UnitOfTime.MINUTES,
-        suggested_display_precision=0,
         device_class=SensorDeviceClass.DURATION,
-        state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda s: s.oven_time_left_s or None,
     ),
     NinjaSensorDescription(
         key="time_set",
         name="Cook Duration",
         native_unit_of_measurement=UnitOfTime.SECONDS,
-        suggested_unit_of_measurement=UnitOfTime.MINUTES,
-        suggested_display_precision=0,
         device_class=SensorDeviceClass.DURATION,
-        state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda s: s.oven_time_set_s or None,
     ),
     # Progress
