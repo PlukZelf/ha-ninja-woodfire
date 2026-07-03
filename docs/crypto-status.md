@@ -367,6 +367,33 @@ address, hook THAT, and capture the raw key as the app decrypts b004 naturally
 Tooling added: `tools/grill_gatt_probe.py` (direct PC→grill GATT probe; MAC via
 arg/env, never hardcoded).
 
+### Session notes (2026-07-03 pm, continued) — narrowing the key hook
+
+- The Gadget build **waits at the logo until a Frida client attaches+resumes** —
+  attaching is what unblocks app startup (confirmed).
+- Live Stalker/return-address tracing of the AES core (app `0x131934`): its
+  **direct callers are `0x130ff0` and `0x13104c`** (AES block encrypt/decrypt
+  wrappers). But the raw 32-byte key is NOT in the core's or these wrappers'
+  immediate stack/regs — fixslice keeps expanded round-keys, so the raw key
+  lives one more level up, in the `Aes256::new(&[u8;32])` key-schedule that
+  CALLS `0x130ff0`/`0x13104c`. **Next: hook the callers of 0x130ff0/0x13104c and
+  scan for the contiguous advert key** `eb08bb10…197e` to pin the key-schedule;
+  the same point then yields the GATT/b004 key.
+- A temp change WAS accepted by the grill this session (state → `desiredTemp=45`,
+  `connectedToBluetooth=true`, `connectedToInternet=false`) — but NONE of the
+  hooked JNI crypto funcs (`extEncryptData` etc.) fired for it, and the fresh
+  `SET_Cook_Command` cloud value was stale (my earlier 12:26 write). So the
+  command reached the grill via a BLE path that does NOT go through the JNI
+  crypto exports — reinforcing that the command-encrypt is an internal
+  (non-JNI) function. The b004/b001 STATE key is the more tractable target and
+  likely the same channel key.
+- Highest-value next target: the **b004/b001 state-decryption key**. Capture it
+  via passive hook while the app decrypts on connect (in-context, no async
+  abort). Getting it unlocks fully-local GATT state reading immediately, and is
+  probably the same key used for commands.
+- Practical gotcha: the phone must be CLOSE to the grill (seen at -88 dBm = too
+  far; app then won't decode/connect reliably). PC BLE link is solid regardless.
+
 ---
 
 ## GATT session-key attack progress (2026-07-03)
