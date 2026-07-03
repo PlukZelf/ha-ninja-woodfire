@@ -245,6 +245,37 @@ user login (all kept local, never committed).
 academic interest** — the app never uses BLE-write for control, so we don't
 need it.
 
+#### VERIFIED END-TO-END (2026-07-03): cloud control works
+
+`tools/ayla_cloud_prototype.py` proved the whole control path live against the
+real account + grill:
+
+- **Auth is Okta/Auth0, NOT direct Ayla login.** Direct
+  `POST /users/sign_in.json` with email+password returns 401 (the account's
+  password lives in Okta). The real flow, confirmed working: obtain an Okta
+  `id_token` (JWT from `logineu.sharkninja.com`) → `POST {user_url}/api/v1/
+  token_sign_in` `{"token", "app_id", "app_secret"}` → **200**, Ayla session
+  (`expires_in=86400`).
+- **Device discovery:** `GET {device_url}/apiv1/devices.json` → the grill
+  (model `AY008MVL1`, name "Rookertje").
+- **State read:** `GET .../dsns/<DSN>/properties.json` → all `GET_*` props
+  (CookState, GrillState, ProbeState, …) in plaintext.
+- **Command write CONFIRMED:** `POST .../properties/SET_Cook_Command/
+  datapoints.json` `{"datapoint":{"value": "<cook-command json>"}}` → **201
+  Created**; read-back shows the new temp landed. (The test grill had not been
+  cloud-connected since 2026-05-08, so `connection_status:Offline` and the
+  datapoint queues with `echo:false` until the grill next joins WiFi — but the
+  cloud accepted and stored the command.)
+- Writable command props: `SET_Cook_Command` (mode/temp/time/smoke),
+  `SET_GrillPower`, `SET_CookSkipDirective`, `SET_Exec_Command` (+ factory/
+  wifi/debug we will NOT expose).
+
+**Auth model for the HA integration:** user does the Okta login (on
+SharkNinja's page, password never touches HA) → HA gets an id_token → exchanges
+for an Ayla session → stores only the (refresh) token, encrypted. Needs the
+**grill on WiFi/cloud** for commands to actually reach the hardware; BLE stays
+the local read-only path.
+
 ---
 
 ### GATT session-key attack progress (2026-07-03)

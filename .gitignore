@@ -23,6 +23,10 @@ venv/
 # Local secrets and captures
 AGENT_HANDOVER.md
 ENVIRONMENT.md
+ninja_secrets.json
+ninja_secrets.env
+ninja_secrets.token.json
+*.secrets.json
 mnt/
 *.log
 *.pcap
@@ -43,3 +47,4 @@ home-assistant.log*
 tools/artifacts/
 tools/lib/*.so
 REBOOT.md
+ninja_idtoken.txt
