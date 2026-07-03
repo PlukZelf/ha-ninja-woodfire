@@ -318,11 +318,62 @@ the local read-only path.
 
 ---
 
-### GATT session-key attack progress (2026-07-03)
+### ⭐⭐ BREAKTHROUGH (2026-07-03 pm): local control is ACHIEVABLE — grill talks to a from-scratch client
+
+Ran a direct BLE GATT connection to the grill **from the dev PC** (`tools/
+grill_gatt_probe.py`, bleak) with the official app **force-stopped** and only HA
+active-scanning. Result:
+
+- The grill **accepts the GATT connection** — no app, no cloud, no account, no
+  auth handshake required to CONNECT.
+- On subscribing to indicate char **b004**, the grill **immediately pushed
+  64-byte encrypted messages, unprompted** — and pushes more on state-change
+  events (event-driven, ~not a steady stream). Char **b001 is readable** and
+  returns the same 64-byte encrypted format (pollable current state).
+- GATT layout confirmed live: service `fcbb`; `b001` read, `b002`
+  write/write-no-response, `b003` notify (silent in our test), `b004` indicate
+  (the state push).
+- The 64-byte messages are high-entropy, share no blocks between messages
+  (per-message nonce/IV), and are **NOT** decryptable with the advert static
+  key — so the GATT channel uses a different key.
+
+**What this proves:** (1) the grill has NO cloud dependency of its own — the
+app's internet requirement is pure app-side business logic; (2) a from-scratch
+HA client can connect and receive state locally; (3) fully-local control is
+genuinely achievable. The ONLY remaining blocker is the **GATT data/command
+key**.
+
+**Important for users:** the official app is needed ONLY by US, ONCE, during RE
+(as the algorithm oracle) — exactly like the advert key. The shipped integration
+will do the crypto in pure Python; end users never need the app/cloud/account.
+
+**Remaining unknown — is the GATT key static or per-session?**
+- If static (baked in the `.so`, like the advert key) → extract once, ship as a
+  constant.
+- If per-session (derived from the challenge) → reverse the derivation, do the
+  handshake in Python each connect.
+Either way: no app for users.
+
+**Blocker on capturing the key:** every attempt to *call* the app's
+`extDecryptData` out-of-context aborts (`"async function in non async context"` —
+the tokio runtime again). The fixslice AES core (app addr `0x131934`; note the
+app maps grillcore **0x100000 below** the emulator's analysis addresses,
+confirmed via a live Stalker trace of `extProcessBTData`) never exposes the raw
+key — it's already bitsliced. **Next step:** Stalker-trace `extDecryptData`
+during a REAL in-context decrypt to pin the `Aes256::new(&[u8;32])` key-schedule
+address, hook THAT, and capture the raw key as the app decrypts b004 naturally
+(no abort). One capture answers static-vs-derived and yields the key material.
+
+Tooling added: `tools/grill_gatt_probe.py` (direct PC→grill GATT probe; MAC via
+arg/env, never hardcoded).
+
+---
+
+## GATT session-key attack progress (2026-07-03)
 
 **Phase 1 (wire protocol) — DONE.** Captured a live handshake via btsnoop
 (`captures/btsnoop-setcmd-last.log`, gitignored) and confirmed the exact
-framing with `tools/analyze_ninja_handshake.py --mac 0ce5a3198052`:
+framing with `tools/analyze_ninja_handshake.py --mac <GRILL_MAC>`:
 
 - `W len=2` → handle 0x0017, value `02 00` (CCCD enable indications; session start)
 - `I len=20` → handle 0x0016 (encrypted challenge, random per session)
