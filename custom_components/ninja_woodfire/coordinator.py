@@ -12,10 +12,11 @@ import time
 from datetime import timedelta
 
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .advert import build_state_from_halves
-from .bluetooth import NinjaWoodfireScanner
+from .bluetooth import HALF1_LEN, NinjaWoodfireScanner
 from .const import DOMAIN, UPDATE_INTERVAL
 from .crypto import decode_advert_half
 from .advert_decode import decode
@@ -49,6 +50,8 @@ class NinjaWoodfireCoordinator(DataUpdateCoordinator[NinjaState]):
         )
         self._last_seen_monotonic: float = 0.0
         self._half_buffer: dict[int, tuple[float, bytes]] = {}
+        self._single_half_streak = 0
+        self._issue_active = False
 
     @property
     def device_name(self) -> str:
@@ -67,15 +70,17 @@ class NinjaWoodfireCoordinator(DataUpdateCoordinator[NinjaState]):
 
     async def async_start(self) -> None:
         """Register the passive scanner. Called from __init__.py setup."""
-        _LOGGER.warning("COORDINATOR START: registering scanner for %s", self._address)
         self._scanner.start()
         self._state = NinjaState(connected=False)
         self.async_set_updated_data(self._state)
-        _LOGGER.warning("COORDINATOR START: scanner registered for %s", self._address)
+        _LOGGER.debug("Passive scanner started for %s", self._address)
 
     async def async_stop(self) -> None:
         """Unregister the scanner. Called from __init__.py unload."""
         self._scanner.stop()
+        if self._issue_active:
+            ir.async_delete_issue(self.hass, DOMAIN, f"passive_scanning_{self._address}")
+            self._issue_active = False
 
     @callback
     def _on_halves(self, half1: bytes, half2: bytes) -> None:
@@ -91,6 +96,10 @@ class NinjaWoodfireCoordinator(DataUpdateCoordinator[NinjaState]):
         self.async_set_updated_data(self._state)
         # Clear buffer on successful decode
         self._half_buffer.clear()
+        self._single_half_streak = 0
+        if self._issue_active:
+            self._issue_active = False
+            ir.async_delete_issue(self.hass, DOMAIN, f"passive_scanning_{self._address}")
 
     @callback
     def _on_single_half(self, half: bytes) -> None:
@@ -143,6 +152,27 @@ class NinjaWoodfireCoordinator(DataUpdateCoordinator[NinjaState]):
                 self._address, half_len, complement_len
             )
             self._half_buffer[half_len] = (now_monotonic, half)
+
+            if half_len == HALF1_LEN:
+                self._single_half_streak += 1
+                if self._single_half_streak >= 30 and not self._issue_active:
+                    self._issue_active = True
+                    _LOGGER.warning(
+                        "Only partial advertisements received from %s — the Bluetooth "
+                        "adapter is likely in passive scanning mode; active scanning is "
+                        "required. See Settings → Repairs.",
+                        self._device_name,
+                    )
+                    ir.async_create_issue(
+                        self.hass,
+                        DOMAIN,
+                        f"passive_scanning_{self._address}",
+                        is_fixable=False,
+                        severity=ir.IssueSeverity.WARNING,
+                        translation_key="passive_scanning",
+                        translation_placeholders={"name": self._device_name},
+                        learn_more_url="https://github.com/PlukZelf/ha-ninja-woodfire#active-scanning-required",
+                    )
 
     async def _async_update_data(self) -> NinjaState:
         """Heartbeat: refresh the 'recently seen' flag; never fails."""

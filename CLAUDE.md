@@ -42,10 +42,19 @@ Geen cloud, geen Ninja account. GitHub: https://github.com/PlukZelf/ha-ninja-woo
 De integratie is herschreven naar **passief BLE advertisement scannen**
 (geen GATT-verbinding, read-only sensors/binary_sensors). De crypto is
 opgelost en meegeleverd als pure Python. Openstaand:
-1. De extractie van de twee manufacturer-data AD-structs (beide company id
-   0x0C4F, 20 en 23 bytes) uit HA's `BluetoothServiceInfoBleak` is nog NIET
-   getest tegen een echte HA-host — primaire pad (`service_info.raw`
-   parsen) + fallback, mogelijk te debuggen bij eerste live-run.
+1. ~~De extractie van de twee manufacturer-data AD-structs...~~ **OPGELOST,
+   bevestigd live op 2026-07-03:** `service_info.raw` bevat beide AD-structs
+   (company id 0x0C4F, 20 en 23 bytes) zodra de adapter actief scant; de
+   `manufacturer_data`-dict houdt door een company-ID-collision maar EEN van
+   de twee payloads over, dus het `raw`-pad is verplicht (niet
+   optioneel/fallback-only).
+   - **Actief scannen is vereist**: de 23-byte helft reist mee in de BLE
+     scan response, die alleen naar actieve scanners wordt verstuurd. Bij
+     passief scannen komen alleen 20-byte helften binnen en kan de state
+     nooit gedecodeerd worden. De coordinator detecteert dit (30
+     opeenvolgende ongepaarde 20-byte helften) en maakt een Repair issue
+     aan (`passive_scanning_<address>`) die de gebruiker naar
+     Instellingen → Reparaties verwijst.
 2. Advertisement-veldsemantiek verder bevestigen tegen live cook-sessies
    (zie `docs/crypto-status.md`).
 

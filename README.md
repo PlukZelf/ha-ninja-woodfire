@@ -54,6 +54,18 @@ Then restart Home Assistant.
 2. **Settings → Devices & Services → Add Integration**, search for **Ninja Woodfire**.
 3. The grill is usually discovered over Bluetooth automatically. If not, enter its address manually.
 
+## Active scanning required
+
+The grill splits its state across two BLE payloads: one rides in the regular advertisement, the other in the **scan response**. The scan response is only sent to scanners that do *active* scanning — a passive-only Bluetooth adapter will only ever see half the data, and the integration will never be able to decode the grill's state.
+
+Home Assistant's built-in Bluetooth integration uses active scanning by default, so this normally works out of the box. If passive scanning has been enabled (directly on the adapter, or on an ESPHome Bluetooth proxy), the integration detects that it's only receiving the 20-byte half and raises a **Repair** issue in Home Assistant explaining what to do.
+
+To fix it:
+
+1. **Settings → Devices & Services → Bluetooth**, click **Configure** on your Bluetooth adapter.
+2. Disable **Passive scanning**.
+3. If the grill is received through an ESPHome Bluetooth proxy, enable active scanning in that proxy's configuration instead.
+
 ## Entities
 
 The integration is read-only. Some fields are only populated in the relevant cook state (for example, probe temperatures need a probe plugged in).
