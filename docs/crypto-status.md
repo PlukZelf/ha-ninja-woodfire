@@ -254,6 +254,39 @@ key is derivable offline (with `set_random_replay` for app entropy) and GATT
 is crackable without a live phone. If it needs live BLE I/O the emulator
 can't fake, fall back to Phase 2 spawn-inject.
 
+#### Update (2026-07-03, later): bug 1 fixed, root blocker localized
+
+**Bug 1 (JNI arg order) — FIXED.** `_jni_call` swapped uuid/data; corrected
+to `(env, this, data, uuid[, key])`, matching the confirmed `extProcessBTData`
+decompile signature `(param_1=env, param_2=this, param_3=data, param_4=uuid,
+param_5=type)`. After the fix, `decrypt_data(indication)` no longer returns
+None — it returns 84 bytes. **BUT** those 84 bytes are uninitialised emulator
+memory (little-endian pointers like `b8fe1f01`=0x011ffeb8, `a0bc3d00`), NOT
+plaintext — the decrypt ran but found **no session key** for the uuid.
+
+**Root blocker — precisely localized:** the session/GATT path needs a
+**per-device session registered in the Rust session registry (a global
+HashMap keyed by uuid)**, which only gets populated by the app's live
+`Connect` handshake. The emulator's `_call_sdk_init` calls `GrillCoreSDK.init`
+with empty/null args (enough for the stateless advert leaf-function, which is
+why `decode_advert` works), but never performs a device `Connect`, so the
+registry is empty. `extProcessBTData(challenge)` returns None because
+`FUN_00217ea4(&ctx, env, uuid)` (the by-uuid session lookup, seen at the top
+of the decompile) finds no entry; `decrypt_data` then reads a garbage/empty
+slot. The `INVALID MEM` faults (fva `0x12cefc`, `0x345dbc`, `0x185a0`,
+`0x7b5c`) are in Rust allocator/TLS/global-init runtime paths hit when the
+session code tries to touch that missing global state.
+
+**Next concrete step (the real crux):** reverse `FUN_00217ea4` + the
+`Connect` codepath to find the function that *creates* a session entry, then
+either (a) call it directly to register a session for the uuid, or (b) drive
+`extProcessBTData` with a proper `Connect`-type packet (not just the raw
+challenge) so the native code allocates the session itself — feeding
+`set_random_replay()` the app-side entropy so the derived key matches the
+captured session. This is an open-ended RE dive into the Rust session
+machinery; success is likely but not guaranteed. If it stalls, Phase 2
+spawn-inject of the STOCK app remains the fallback.
+
 ## Cloud architecture (context only, not a shortcut)
 
 The grill is registered on **Ayla Networks'** white-label IoT cloud
