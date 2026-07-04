@@ -43,7 +43,22 @@ a row without a crash — and document its exact launch+attach sequence in
 `check_phase2.py` runnable against real data.
 
 ## Blockers / notes
-- (none yet)
+- **Offline analysis ceiling reached (2026-07-04).** Autonomous offline work done:
+  - `tools/analyze_ninja_handshake.py` FIXED (committed) — extracts the full wire
+    handshake from `captures/btsnoop-setcmd-last.log`: ~15 sessions of
+    `CCCD 02 00` → 20B challenge (h=0x0016) → 48B write (h=0x0011).
+  - Wire structural analysis: 48B writes + 20B challenges are **effectively random**
+    (no constant bytes, unique 16B prefixes, no ECB tell). Confirms strong
+    per-session encryption + per-message IV/nonce; **48B ≈ 16B IV + 32B ciphertext**.
+    → No wire-only shortcut; the key is the sole path.
+  - Ghidra decompile of the decrypt `FUN_003c3ba0` confirms it is logging + a
+    **vtable dispatch** `(*(code**)(*session + 0x558))(...)` into a per-session
+    closure — no static cipher/key. Matches the per-session/tokio findings.
+- **What remains needs the phone + human (interactive):** capture the session key.
+  Two routes, both need a live session: (A) app-as-driver/oracle — inject our own
+  `extSendBTPayload` JSON so the app does the handshake+encrypt (proves control +
+  yields matched tuples); (B) hook the key at the moment the key-schedule runs.
+  Neither is doable autonomously (needs the app kept connected + change/verify).
 
 ## Confirmed-closed routes (do not reopen — see plan R4)
 - Offline Unicorn emulator replay of GATT path (tokio async wall).
