@@ -54,6 +54,10 @@ a row without a crash — and document its exact launch+attach sequence in
   - Ghidra decompile of the decrypt `FUN_003c3ba0` confirms it is logging + a
     **vtable dispatch** `(*(code**)(*session + 0x558))(...)` into a per-session
     closure — no static cipher/key. Matches the per-session/tokio findings.
+- **Command names gap:** only `{"cmd":"Connect"}` is confirmed. The set/cook
+  command names + `data[]` schema are NOT in the `.so` or repo artifacts (they live
+  in the app's JS/Kotlin layer) → must be captured from a live `extSendBTPayload`
+  send (interactive). Needed for Phase 6 entities.
 - **What remains needs the phone + human (interactive):** capture the session key.
   Two routes, both need a live session: (A) app-as-driver/oracle — inject our own
   `extSendBTPayload` JSON so the app does the handshake+encrypt (proves control +
