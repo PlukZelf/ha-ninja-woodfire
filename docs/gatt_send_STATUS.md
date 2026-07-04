@@ -13,7 +13,7 @@ phases, gates, and Execution Protocol (R1–R6).
 | 2 | Reverse key derivation `f(challenge)→key` | `todo` | `FAIL` (stub; fixtures absent) | `gatt_crypto.py::derive_key` |
 | 3 | Reverse record enc/dec (b002/b004) | `todo` | `FAIL` (stub; fixtures absent) | `gatt_crypto.py::{encrypt,decrypt}_record` |
 | 4 | Reverse auth handshake (first 48B) | `todo` | `FAIL` (stub; fixtures absent) | `gatt_crypto.py::build_auth_response` |
-| 5 | Pure-Python client (laptop end-to-end) | `todo` | — | `tools/gatt_send/ninja_client.py` |
+| 5 | Pure-Python client (laptop end-to-end) | `in-progress` | skeleton + dry-run done; blocked on crypto (2-4) | `tools/gatt_send/ninja_client.py` |
 | 6 | HA control entities | `todo` | — | control entities in integration |
 
 ### Scaffolding in place (Phase 0, partial — offline enforcement rails)
@@ -32,15 +32,24 @@ Still todo in Phase 0/1: **0.3** the stable phone instrumentation rig, and
 **Phase 1** the live key capture that produces `fixtures/keys.json` — both need a
 human + device.
 
-## Current next task
-**Phase 0.3 + Phase 1 (phone-dependent — needs a human + device).** The offline
-gate-check scaffolding and fixture contracts are now in place. What remains is
-the phone-dependent work autonomous agents cannot do: (0.3) stand up the stable
-instrumentation rig — cold-start → attach thin hook → see live plaintext twice in
-a row without a crash — and document its exact launch+attach sequence in
-`tools/gatt_send/README.md`; then (Phase 1) run the live key capture to produce
-≥3 `(challenge, key)` pairs into `tools/gatt_send/fixtures/keys.json`, which makes
-`check_phase2.py` runnable against real data.
+## Current next task — INTERACTIVE session with the human + phone
+All autonomous offline work is done and committed (rails, wire extraction, wire
+analysis, Ghidra confirmation, client skeleton). The remaining blockers ALL need a
+live app session, in one focused ~15-min sitting:
+
+1. **Session key (Phase 1)** — the linchpin. Best route given everything learned:
+   **app-as-driver/oracle.** In a live session, hook `extSendBTPayload` and either
+   (a) let the user change temp and capture the key at the moment it's used, or
+   (b) inject our own JSON so the app does the handshake+encrypt (proves control +
+   yields matched tuples). Need the app kept CONNECTED (it drops in seconds idle)
+   and the human to change/verify. Produce ≥3 `(challenge,key)` pairs →
+   `fixtures/keys.json` → `check_phase2.py` runnable. Prereq notes for the rig:
+   fresh app launch + attach-FIRST thin hook; app degrades after ~5-7 attach
+   cycles → reinstall Gadget or stock-app `frida -U -f` if it won't hold.
+2. **Command names/schema** — capture a real `extSendBTPayload` for a temp change
+   (only `Connect` confirmed) to fill the `SetTemp` placeholder in `ninja_client.py`.
+3. Then Phases 2-4 (reverse derive_key/encrypt/auth) become offline+gated, and 5-6
+   follow. Fixtures unlock the whole delegatable tail.
 
 ## Blockers / notes
 - **Offline analysis ceiling reached (2026-07-04).** Autonomous offline work done:
