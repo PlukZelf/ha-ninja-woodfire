@@ -48,8 +48,18 @@ tools/artifacts/
 tools/lib/*.so
 REBOOT.md
 ninja_idtoken.txt
+# AWS device-shadow dumps (contain Device_Key + personal identifiers)
+aws_devices_dump.json
+aws_device_dump.json
 
 # GATT-send fixtures contain live key material / device identifiers — never
 # commit them; only the format-contract README is tracked.
 tools/gatt_send/fixtures/*.json
 !tools/gatt_send/fixtures/README.md
+
+# crypto_puzzle: generated fixture data embeds captured device-keyed
+# ciphertext, and Fase 2 key material — never commit. The harness .py/.md
+# and this dir's generator ARE tracked.
+tools/crypto_puzzle/_fixtures_data.json
+tools/crypto_puzzle/_keymat.json
+tools/crypto_puzzle/_cipherpair.json
