@@ -21,6 +21,22 @@ grill** (lezen werkt al & is geshipped; dit gaat puur over SCHRIJVEN/besturen).
 - GATT gebruikt NIET de advert-key (getest, faalt). NIET libcrypto (0 hooks).
 
 ## DOODLOPENDE WEGEN (NIET opnieuw proberen — uitgeput)
+- **Statische JS-sleutel `sharkninjawp1000` als wire-crypto -> GEFALSIFICEERD
+  (2026-07-06).** De RN-bundle bevatte een statische AES-128-CBC
+  (key=`sharkninjawp1000`, iv=`1234567890abcdef`), zie `STATIC_KEY_FOUND.md`.
+  Offline getest met `tools/crypto_puzzle/static_key_test.py` tegen het b004-
+  paar (bekende plaintext): reproduceert de plaintext NIET, alle 34 command-
+  writes -> garbage. Dit is de **probe-accessoire-crypto**, niet de grill-
+  command-crypto. Er zit een native per-sessie laag omheen (bevestigt de
+  max-entropie/0-gedeelde-bytes-observatie). NIET opnieuw proberen.
+- **coxtor/ninja-woodfire-integration bekeken (2026-07-06) -> geen BLE-hulp.**
+  Is 100% de cloud-route die wij al hebben (platte JSON naar Ayla
+  `SET_Cook_Command`, nul crypto). De `device_key` die het meestuurt is een
+  cloud device-ID-**integer** in de payload, NIET onze BLE-`Device_Key` (valse
+  vriend). Enige mogelijk-nuttige restje: hun `scripts/extract_credentials.py`
+  is een kant-en-klare logcat-regex voor de 4 app-globale cloud-identifiers
+  (ayla_app_id/secret, auth0_client_id/audience) als die ooit roteren — reserve,
+  niet op het kritieke pad.
 - Geheugen-string-scan op "DEVICE_KEY" -> leeg.
 - Lokale opslag (RKStorage/MMKV) lezen -> sleutel staat er niet.
 - JNI-hook op extEncryptData/extSendBTPayload -> vuurt niet voor temp-commando
@@ -82,10 +98,15 @@ als (of afleidbaar naar) de BLE **`Device_Key`**?
   En/of: haal via SPOOR 2 de sleutel op en probeer die in de SPOOR-1 solvers.
 
 ## AANBEVOLEN VOLGORDE VOLGENDE SESSIE
+(Bijgewerkt 2026-07-06: statische-sleutel-route is dood, zie boven. De twee
+sporen hieronder zijn ongewijzigd en nu de enige levende paden.)
 1. (offline agent) Toets of `lan_key` == BLE `Device_Key`-bron. Beslist alles.
 2. Als gelijk: gebruik LAN (ontwikkelaar, WiFi eenmalig) om sleutel te winnen ->
    voer in SPOOR-1 solvers -> los f op -> pure-Python BLE-besturing.
-3. Als niet gelijk: SPOOR 1 Fase 2 (telefoon: rauwe session_key hooken).
+3. Als niet gelijk: SPOOR 1 Fase 2 (telefoon: rauwe session_key hooken). Dit is
+   het meest concrete pad: de solvers staan klaar, alleen 1 sessie sleutel-
+   materiaal ontbreekt nog. `tools/aws_device_key.py` levert de Device_Key-helft
+   van de tuple (cloud GET, read-only).
 
 ## OMGEVING / HANDIGE FEITEN
 - Grill MAC `<GRILL_MAC>`, DSN `<DSN>`, naam "Rookertje",
