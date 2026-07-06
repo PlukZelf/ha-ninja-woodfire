@@ -63,3 +63,4 @@ tools/gatt_send/fixtures/*.json
 tools/crypto_puzzle/_fixtures_data.json
 tools/crypto_puzzle/_keymat.json
 tools/crypto_puzzle/_cipherpair.json
+tools/_re_work/

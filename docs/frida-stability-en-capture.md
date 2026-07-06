@@ -4,6 +4,63 @@ Doel van dit doc: de gepatchte-app-instabiliteit uit de handoff omzeilen, en in
 **één sessie zonder her-attachen** het Fase-2-sleutelmateriaal vangen dat de
 `crypto_puzzle`-solvers nodig hebben.
 
+## LIVE-SESSIE BEVINDINGEN (2026-07-06, avond) — LEES DIT EERST
+
+Een volledige live Frida-sessie op de Pixel 7a (gepatchte Gadget-APK) heeft het
+commando-pad hard in kaart gebracht. Belangrijkste conclusies:
+
+**Instrumentatie werkt nu stabiel.** Gadget-attach via `frida_run.py` is stabiel
+gebleken over vele runs (geen degradatie zoals de oude handoff vreesde), MITS je
+niet dubbel-attacht. `frida-server` op de telefoon kan NIET (niet-geroot: spawn =
+NotSupportedError, attach = PermissionDeniedError) — Gadget-APK blijft verplicht.
+Frida 17: `Module.findExportByName` bestaat niet meer -> gebruik
+`Process.findModuleByName(lib).findExportByName(naam)`.
+
+**Het commando-pad (hard bewezen via logcat + hooks):**
+- Cook-commando = **2× 48-byte GATT-write naar b002** (handle 0x0011), via de
+  Android `BluetoothGatt` Java-API (`react-native-ble-manager`), alleen bij een
+  **VERSE** GATT-connect (challenge-handshake). Een temp-wijziging op een al-open
+  verbinding stuurt GEEN nieuwe crypto-write (gaat via advert-state).
+- Om de crypto te triggeren MOET de telefoon een verse connect doen: **BT uit →
+  ~10s wachten → BT aan → app laat verbinden → temp zetten**. Dan pas
+  `connected: true` + de 48B-writes + de crypto-calls.
+- De grill was air-gapped (`connectedToInternet=false`) tijdens deze writes ->
+  dit is exact het lokale BLE-pad dat we nodig hebben (niet de cloud).
+
+**Waar de crypto NIET zit (uitgesloten met live hooks):**
+- Statische JS-sleutel `sharkninjawp1000` (al eerder gefalsifieerd).
+- `libcrypto.so` / BoringSSL (`EVP_*`, `AES_cbc_encrypt` gehookt, 0 fires).
+- De Java-bridge is DOOD in deze Gadget -> geen `Java.perform`/writeCharacteristic-hook.
+- De C-exports `extEncryptData` / `extEncryptDataWithOptionalKey` VUREN NIET voor
+  cook-commando's (48B-write gebeurde, encrypt-export niet aangeroepen).
+
+**Waar het WEL doorheen gaat:**
+- `extProcessBTData` (inkomende advert/state-stroom, vuurt honderden keren) en
+  `extDecryptData` (64B→47B state-decrypt) VUREN wél op een verse connect.
+- `extSendBTPayload` VUURT en is leesbaar te hooken. Arg = JSON-string:
+  `{"cmd":"Send","id":"<MAC>","data":[64 bytes],"key":null}`. Zie
+  `tools/_re_work/sendbt_capture.md`. MAAR: `data` is al CIPHERTEXT en `key`=null
+  -> dit is POST-encryptie. De encrypt gebeurt upstream in de Rust
+  `sendBTCommand`-keten op de tokio async-runtime (de bekende muur).
+
+**De arg-lezing die werkt (belangrijk voor volgende hooks):**
+- Args kunnen MTE-getagde heap-pointers zijn (`0xb400...`) -> strip top-byte
+  (`p.and(ptr('0x00ffffffffffffff'))`).
+- Een ART byte[]/String: length int32 @+8, data @+12. Een JSON-arg leest als
+  String met `readUtf8String()` op +12.
+- NOOIT JNIEnv-functies (`GetByteArrayElements`/`Region`) aanroepen vanuit
+  `extDecryptData` c.s. -> triggert de tokio panic "abort was called". Alleen
+  RAUW geheugen lezen.
+- `extDecryptData` args bleken vaste Rust-Box-handles (niet leesbaar) -> de
+  plaintext/key leven binnen de async-keten, niet in de call-args.
+
+**Netto:** de wire-ciphertext is nu leesbaar te vangen, maar plaintext + device
+key blijven achter de async-muur. Volgende kansrijke route: de device key pakken
+waar JS 'm levert (`getCurrentDeviceKey` via `run_call_request`, base64,
+decompiled.js ~1164968), OF Spoor 2 (Ayla LAN, grill staat nu op WiFi).
+
+---
+
 ## Diagnose van de instabiliteit
 
 Symptoom (handoff): de gepatchte Frida-Gadget-app hangt op logo / freezet /
