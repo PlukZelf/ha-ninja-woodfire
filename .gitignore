@@ -52,15 +52,8 @@ ninja_idtoken.txt
 aws_devices_dump.json
 aws_device_dump.json
 
-# GATT-send fixtures contain live key material / device identifiers — never
-# commit them; only the format-contract README is tracked.
-tools/gatt_send/fixtures/*.json
-!tools/gatt_send/fixtures/README.md
-
-# crypto_puzzle: generated fixture data embeds captured device-keyed
-# ciphertext, and Fase 2 key material — never commit. The harness .py/.md
-# and this dir's generator ARE tracked.
-tools/crypto_puzzle/_fixtures_data.json
-tools/crypto_puzzle/_keymat.json
-tools/crypto_puzzle/_cipherpair.json
-tools/_re_work/
+# Local reverse-engineering / dev tooling is not distributed. The whole tools/
+# tree stays out of the repo: it holds RE scripts, Frida hooks, anti-tamper
+# bypass tooling, and captured device-keyed material. Nothing here ships to
+# end users (the integration in custom_components/ is fully self-contained).
+tools/
