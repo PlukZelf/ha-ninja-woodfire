@@ -24,8 +24,10 @@ from .protocol import NinjaState
 
 _LOGGER = logging.getLogger(__name__)
 
-# If no advertisement is seen within this window, the device is treated as gone.
-_SEEN_STALE_AFTER = UPDATE_INTERVAL * 2
+# If no advertisement is decoded within this window, the device is treated as
+# gone. The grill advertises every few seconds, so 25s tolerates a handful of
+# missed adverts (no flicker) while still dropping Connected promptly.
+_SEEN_STALE_AFTER = 25.0
 _BUFFER_TIMEOUT = 5.0  # seconds: wait this long for second half to arrive
 
 

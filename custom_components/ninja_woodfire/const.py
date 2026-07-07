@@ -15,5 +15,7 @@ COMPANY_ID = 0x0C4F
 CONF_ADDRESS = "address"
 CONF_NAME = "name"
 
-# Update interval fallback (seconds) — device pushes notifications so this is a heartbeat only
-UPDATE_INTERVAL = 30
+# Heartbeat interval (seconds): how often the coordinator re-evaluates the
+# "recently seen" flag. The grill advertises every few seconds, so a short
+# heartbeat keeps the Connected sensor responsive without polling the device.
+UPDATE_INTERVAL = 10
