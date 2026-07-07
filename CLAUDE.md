@@ -109,11 +109,18 @@ connectedToBluetooth / connectedToInternet / error
   `bluetooth.py` (passieve callback) → `crypto.py` (decrypt) →
   `advert_decode.py` (bit-fields) → `advert.py` (state-mapping) →
   `coordinator.py` (presence via advert-recency) → read-only entities.
-- Alleen sensors + binary_sensors. GEEN control-entities.
-- VERWIJDERD bij de rewrite: `switch.py`, `button.py`, `number.py`,
-  `select.py`, `time.py`, `commands.py`, `grillcore_native.py` en de map
-  `lib/` — die hadden alleen zin voor GATT-control, wat niet kan zonder de
-  onopgeloste GATT-write-crypto. Niet opnieuw aanmaken.
+- Sensors + binary_sensors = read-only (advert). **Update 2026-07-07:** op
+  verzoek van de gebruiker is de control-laag alvast vooruitgebouwd zodat hij
+  klaarstaat zodra de GATT-write-crypto valt:
+  - `number.py` (Target Temperature) + `control.py` (NinjaWoodfireControl).
+  - `control.py` raist `ControlNotReady` tot de crypto er is; setten faalt dus
+    nu netjes met een duidelijke HA-melding (geen crash, geen valse belofte).
+  - Zodra `gatt_crypto` (pure Python) landt, hoeft alleen `control.py` het echte
+    connect→handshake→encrypt→write-pad te krijgen. Zie `docs/send-commands-plan.md`.
+- Nog NIET aangemaakt (pas zinvol ná de crypto): `select.py` (cook mode),
+  `switch.py`/`button.py` (power/start-stop), `time.py` (timer).
+- `commands.py`, `grillcore_native.py`, de map `lib/`: blijven verwijderd
+  (waren voor een oude GATT-connect-aanpak). Niet opnieuw aanmaken.
 
 ## Commit stijl
 ```
