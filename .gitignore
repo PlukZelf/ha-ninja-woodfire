@@ -57,3 +57,18 @@ aws_device_dump.json
 # bypass tooling, and captured device-keyed material. Nothing here ships to
 # end users (the integration in custom_components/ is fully self-contained).
 tools/
+
+# Reverse-engineering notes/status docs — these only describe the (now removed)
+# tools/ RE work and carry native offsets, Frida-hook details, anti-tamper and
+# cloud-endpoint specifics. Kept locally, never published.
+/REBOOT.md
+/STATIC_KEY_FOUND.md
+docs/crypto-status.md
+docs/crypto-puzzle-plan.md
+docs/send-commands-plan.md
+docs/gatt_send_STATUS.md
+docs/gatt-crypto-solved.md
+docs/pairing-debug-breakthrough.md
+docs/frida-stability-en-capture.md
+docs/bluetooth-discovery.md
+docs/HANDOFF-volgende-sessie.md

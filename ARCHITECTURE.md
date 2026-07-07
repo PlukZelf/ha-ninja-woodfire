@@ -19,8 +19,7 @@ The project is split into three layers:
 ## Bluetooth Strategy
 
 The device exposes state through **two separate BLE channels with unrelated
-encryption** (see [docs/crypto-status.md](docs/crypto-status.md) for the full
-reverse-engineering detail):
+encryption**:
 
 1. **Passive advertisements** — broadcast continuously, no connection
    needed. Encrypted with a **static** AES-256 key (a fixed key/IV recovered

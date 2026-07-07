@@ -16,8 +16,7 @@
 
 ## Sprint 2: Protocol Research
 
-There are TWO separate BLE channels with unrelated crypto (see
-[docs/crypto-status.md](docs/crypto-status.md) for full technical detail):
+There are TWO separate BLE channels with unrelated crypto:
 the passive **advertisement** channel (static key, fully decoded, no
 connection needed) and the **GATT** channel used after `Connect` (per-session
 key, unsolved, needed only for sending commands).
@@ -30,10 +29,10 @@ key, unsolved, needed only for sending commands).
       total cook time, oven temperature, target temperature, probe1
       temperature, probe plugged-in/target-set flags, probe target
       temperature.
-- [x] Port the advertisement crypto to pure Python (`tools/advert_crypto_port.py`,
-      static AES-256-CBC with fixed key/IV, no emulator/`.so` needed at
-      runtime — verified byte-for-byte against 150+ vectors, see
-      "Pure-Python port — DONE" in docs/crypto-status.md).
+- [x] Port the advertisement crypto to pure Python
+      (`custom_components/ninja_woodfire/crypto.py`, static AES-256-CBC with
+      fixed key/IV, no emulator/`.so` needed at runtime — verified
+      byte-for-byte against 150+ vectors).
 - [ ] Finish mapping the remaining fields (preheat progress, the `extra_byte`
       after the MAC, the rolling final field, probe2 once tested with a
       second physical probe).
@@ -43,7 +42,7 @@ key, unsolved, needed only for sending commands).
 - [ ] Identify command writes for safe read-only and control operations
       over GATT.
 - [x] Create a structured protocol specification in `spec/` (GATT service
-      shape) and `docs/crypto-status.md` (crypto + field findings).
+      shape).
 
 ## Sprint 3: Home Assistant Integration
 
@@ -64,7 +63,7 @@ key, unsolved, needed only for sending commands).
 
 - [x] Ship a pure-Python advertisement decoder (no vendor `.so` needed).
 - [ ] Finish confirming advertisement field semantics against live cook
-      sessions (see the open items in Sprint 2 and docs/crypto-status.md).
+      sessions (see the open items in Sprint 2).
 - [ ] Document known device models and firmware behavior.
 - [ ] Prepare a first tagged release.
 
@@ -72,9 +71,7 @@ key, unsolved, needed only for sending commands).
 
 Control entities were previously prototyped and removed, and sending
 commands remains unimplemented — but the underlying GATT session-key
-reverse-engineering is now **actively in progress**, not parked. Full
-technical detail in [docs/crypto-status.md](docs/crypto-status.md) ("GATT
-session-key attack progress").
+reverse-engineering is now **actively in progress**, not parked.
 
 - [x] Phase 1 — confirm the wire protocol: captured a live handshake via
       btsnoop and confirmed the exact framing (CCCD write → 20-byte
@@ -85,7 +82,6 @@ session-key attack progress").
       context"` panic. Unlike the advert crypto (a synchronous leaf function),
       the command crypto needs a live executor + reactor with real BLE I/O,
       which the Unicorn emulator cannot run. The key is not derivable offline.
-      See `docs/crypto-status.md` for the full trace.
 - [ ] Phase 2 (now the only viable route) — live Frida on the phone:
       **spawn-inject the STOCK app** (`frida -U -f`) with anti-detection
       bypass and hook the crypto exports while a real command is sent,

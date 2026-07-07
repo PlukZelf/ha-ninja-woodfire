@@ -50,14 +50,14 @@ Geen cloud, geen Ninja account. GitHub: https://github.com/PlukZelf/ha-ninja-woo
   - Fase 2 (live Frida-trace): grotendeels achterhaald — zie hieronder,
     de app stuurt commando's helemaal NIET via BLE.
 - Native library `libgrillcore_android.so` (Rust ARM64) is alleen nog een
-  RE-oracle in `tools/`, nooit gecommit, nooit gedistribueerd.
+  RE-oracle in lokale (niet-gecommitte) tooling, nooit gedistribueerd.
 
 ## ⛔ KERNBEPERKING — commando's sturen (2026-07-03)
 - **De grill komt NOOIT op internet — dat is het hele idee.** Dit is een
   harde ontwerp-eis van de gebruiker, niet onderhandelbaar.
 - Live getraced: de officiële app stuurt commando's **via de Ayla-cloud**
   (plaintext property-write `SET_Cook_Command`), NIET via BLE. Bewezen
-  end-to-end (`tools/ayla_cloud_prototype.py`, `201 Created`).
+  end-to-end met lokale (niet-gecommitte) tooling (`201 Created`).
 - **MAAR:** cloud-commando's bereiken de grill alleen als de grill zélf de
   cloud pollt over WiFi. Een offline grill pollt nooit → commando blijft
   eeuwig in de cloud staan. HA-internet helpt niet; de kapotte schakel is
@@ -126,7 +126,6 @@ docs: update gatt spec
 ## Testcommando's
 ```bash
 pytest tests/ -v
-python tools/parse_btsnoop_att.py <btsnoop.log> --writes-only
 ```
 
 ## Belangrijke bevindingen

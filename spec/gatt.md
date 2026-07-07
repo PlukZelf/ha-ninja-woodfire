@@ -5,11 +5,9 @@ This document records confirmed Bluetooth Low Energy GATT details for the Ninja 
 > **Note:** this document is **reference only** — the current integration
 > does **not** use GATT. It reads grill state passively from BLE
 > advertisements (a separate, already-decoded channel that needs no
-> connection at all — see
-> [docs/crypto-status.md](../docs/crypto-status.md)). GATT is documented here
-> as protocol background; its post-`Connect` session-key crypto remains
-> unsolved and would only be needed to *send* commands, which the integration
-> does not do.
+> connection at all). GATT is documented here as protocol background; its
+> post-`Connect` session-key crypto remains unsolved and would only be needed
+> to *send* commands, which the integration does not do.
 
 ## Confirmed Device
 

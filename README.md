@@ -7,7 +7,7 @@
 
 A local Home Assistant integration for the Ninja Woodfire Pro outdoor grill. It reads the grill's state directly from its Bluetooth Low Energy advertisements, so there's no cloud, no Ninja account, and no proprietary binary involved.
 
-**This is a work in progress.** The integration listens passively to the grill's BLE broadcasts and decodes them locally — it never connects to the grill, so it never conflicts with the Ninja mobile app. The advertisement encryption has been fully reverse-engineered and ported to pure Python, so state reading works without any phone or vendor library, and this has been confirmed working end-to-end on a real Home Assistant host. See [ROADMAP.md](ROADMAP.md) for where things stand, and [docs/crypto-status.md](docs/crypto-status.md) for the reverse-engineering detail.
+**This is a work in progress.** The integration listens passively to the grill's BLE broadcasts and decodes them locally — it never connects to the grill, so it never conflicts with the Ninja mobile app. The advertisement encryption has been fully reverse-engineered and ported to pure Python, so state reading works without any phone or vendor library, and this has been confirmed working end-to-end on a real Home Assistant host. See [ROADMAP.md](ROADMAP.md) for where things stand.
 
 <br clear="left" />
 
@@ -16,7 +16,7 @@ A local Home Assistant integration for the Ninja Woodfire Pro outdoor grill. It 
 - **Passive** BLE advertisement decoding — no connection to the grill, no pairing, no interference with the Ninja app.
 - Read-only sensors and binary sensors for grill state, decoded locally from the broadcast packets.
 
-There are **no control entities** (start/stop cook, set temperature, etc.). Sending commands would require the grill's GATT command channel, whose **per-session** encryption is not yet solved. Recent reverse-engineering has confirmed the grill accepts a from-scratch local BLE client (no app, no cloud) and has captured the plaintext state and command formats — the one remaining blocker is deriving the per-connection session key from the grill's handshake. See [docs/crypto-status.md](docs/crypto-status.md) for the full status.
+There are **no control entities** (start/stop cook, set temperature, etc.). Sending commands would require the grill's GATT command channel, whose **per-session** encryption is not yet solved. Recent reverse-engineering has confirmed the grill accepts a from-scratch local BLE client (no app, no cloud) and has captured the plaintext state and command formats — the one remaining blocker is deriving the per-connection session key from the grill's handshake.
 
 ## Supported devices
 
@@ -98,7 +98,7 @@ The integration is read-only. Some fields are only populated in the relevant coo
 | `binary_sensor.ninja_woodfire_probe1_plugged` | Probe 1 plugged in |
 | `binary_sensor.ninja_woodfire_probe2_plugged` | Probe 2 plugged in |
 
-Individual field semantics are still being confirmed against live cook sessions; see [docs/crypto-status.md](docs/crypto-status.md) for exactly which fields are mapped.
+Individual field semantics are still being confirmed against live cook sessions.
 
 ## Development
 
@@ -119,7 +119,6 @@ custom_components/ninja_woodfire/   HA integration
   diagnostics.py                    HA diagnostics
 docs/                               Project notes
 spec/gatt.md                        GATT services and characteristics (reference only)
-tools/                              BLE discovery and analysis scripts
 captures/                           Local BLE captures (gitignored)
 tests/                              Tests
 ```
@@ -130,7 +129,7 @@ tests/                              Tests
 
 The device uses two separate BLE channels with unrelated encryption:
 
-- **Advertisements** (no connection needed): fully decoded and ported to pure Python (`custom_components/ninja_woodfire/crypto.py`) — a static AES-256-CBC decrypt with a fixed key/IV, verified byte-for-byte against the vendor library. This is the channel the integration uses. See [docs/crypto-status.md](docs/crypto-status.md).
+- **Advertisements** (no connection needed): fully decoded and ported to pure Python (`custom_components/ninja_woodfire/crypto.py`) — a static AES-256-CBC decrypt with a fixed key/IV, verified byte-for-byte against the vendor library. This is the channel the integration uses.
 - **GATT** (used for reading richer state and sending commands): partially reverse-engineered but not yet usable. What's known so far:
   - The grill accepts a **from-scratch local BLE client** (proven with `bleak` — no app, no cloud, no account) and streams encrypted state on characteristic `b004`.
   - The **plaintext state format** (a device-id header + state fields) and the **command format** (simple JSON — `{"cmd": ..., "data": [...]}`) have both been captured.
