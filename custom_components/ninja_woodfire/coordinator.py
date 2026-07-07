@@ -160,7 +160,8 @@ class NinjaWoodfireCoordinator(DataUpdateCoordinator[NinjaState]):
                     _LOGGER.warning(
                         "Only partial advertisements received from %s — the Bluetooth "
                         "adapter is likely in passive scanning mode; active scanning is "
-                        "required. See Settings → Repairs.",
+                        "required. Set Settings -> Devices & Services -> Bluetooth -> "
+                        "Configure -> Scanning mode to Active. See the Repair issue for details.",
                         self._device_name,
                     )
                     ir.async_create_issue(

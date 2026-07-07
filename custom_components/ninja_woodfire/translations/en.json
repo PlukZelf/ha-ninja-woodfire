@@ -33,7 +33,7 @@
   "issues": {
     "passive_scanning": {
       "title": "Active Bluetooth scanning required for {name}",
-      "description": "The Ninja Woodfire grill sends half of its status in a BLE scan response, which is only transmitted when the Bluetooth adapter uses active scanning. Home Assistant is currently only receiving partial advertisements, so the grill's state cannot be decoded.\n\nTo fix this: go to **Settings → Devices & Services → Bluetooth**, click **Configure** on your Bluetooth adapter, and disable **Passive scanning**. If the grill is received through an ESPHome Bluetooth proxy, enable active scanning in that proxy's configuration instead."
+      "description": "The Ninja Woodfire grill sends half of its status in a BLE scan response, which is only transmitted when the Bluetooth adapter uses active scanning. Home Assistant is currently only receiving partial advertisements, so the grill's state cannot be decoded.\n\nTo fix this: go to **Settings → Devices & Services → Bluetooth**, click **Configure** on your Bluetooth adapter, and set **Scanning mode** to **Active**. If the grill is received through an ESPHome Bluetooth proxy, enable active scanning in that proxy's configuration instead."
     }
   }
 }

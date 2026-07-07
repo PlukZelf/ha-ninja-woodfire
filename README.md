@@ -61,7 +61,7 @@ Home Assistant's built-in Bluetooth integration uses active scanning by default,
 To fix it:
 
 1. **Settings → Devices & Services → Bluetooth**, click **Configure** on your Bluetooth adapter.
-2. Disable **Passive scanning**.
+2. Set **Scanning mode** to **Active** (the dropdown offers Auto / Active / Passive).
 3. If the grill is received through an ESPHome Bluetooth proxy, enable active scanning in that proxy's configuration instead.
 
 ## Entities
